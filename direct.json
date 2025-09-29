@@ -1,0 +1,30 @@
+{
+  "labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  "datasets": [
+    {
+      "label": "Our Company",
+      "data": [100, 105, 110, 112, 118, 122, 128, 130, 135, 140, 145, 150],
+      "borderColor": "#0070f3"
+    },
+    {
+      "label": "Competitor A",
+      "data": [90, 92, 93, 95, 97, 99, 101, 103, 104, 106, 108, 110],
+      "borderColor": "#ff5733"
+    },
+    {
+      "label": "Competitor B",
+      "data": [85, 87, 88, 89, 91, 93, 94, 96, 97, 98, 100, 102],
+      "borderColor": "#33c1ff"
+    },
+    {
+      "label": "Competitor C",
+      "data": [95, 96, 97, 98, 100, 101, 103, 104, 105, 107, 109, 111],
+      "borderColor": "#33ff57"
+    },
+    {
+      "label": "Competitor D",
+      "data": [78, 80, 82, 83, 84, 85, 87, 88, 89, 90, 91, 92],
+      "borderColor": "#a833ff"
+    }
+  ]
+}
