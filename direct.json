@@ -106,21 +106,8 @@
     }
   ],
   "consolidatedCompetitors": {
-    "name": "All Competitors",
+    "name": "Average Competitors",
     "color": "#0099c6",
-    "headcount": [
-      300,
-      330,
-      360,
-      390,
-      420,
-      450,
-      480,
-      510,
-      540,
-      570,
-      600,
-      630
-    ]
+    "headcount": [70, 77.5, 85, 92.5]
   }
 }
