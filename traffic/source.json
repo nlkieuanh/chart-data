@@ -1,0 +1,19 @@
+{
+  "yourCompany": {
+    "name": "Your Company",
+    "color": "#3366cc",
+    "sources": { "Direct": 35, "Organic": 40, "Paid": 15, "Referral": 5, "Social": 5 }
+  },
+  "competitors": [
+    { "name": "Competitor A", "color": "#dc3912", "sources": { "Direct": 30, "Organic": 45, "Paid": 15, "Referral": 5, "Social": 5 } },
+    { "name": "Competitor B", "color": "#ff9900", "sources": { "Direct": 25, "Organic": 50, "Paid": 10, "Referral": 10, "Social": 5 } },
+    { "name": "Competitor C", "color": "#109618", "sources": { "Direct": 20, "Organic": 55, "Paid": 10, "Referral": 10, "Social": 5 } },
+    { "name": "Competitor D", "color": "#990099", "sources": { "Direct": 40, "Organic": 35, "Paid": 15, "Referral": 5, "Social": 5 } },
+    { "name": "Competitor E", "color": "#0099c6", "sources": { "Direct": 28, "Organic": 42, "Paid": 20, "Referral": 5, "Social": 5 } }
+  ],
+  "consolidatedCompetitors": {
+    "name": "Average Competitors",
+    "color": "#999999",
+    "sources": { "Direct": 28.6, "Organic": 45.4, "Paid": 14, "Referral": 7, "Social": 5 }
+  }
+}
