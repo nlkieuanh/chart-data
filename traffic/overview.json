@@ -1,0 +1,40 @@
+{
+  "periods": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+  "yourCompany": {
+    "name": "Your Company",
+    "color": "#3366cc",
+    "traffic": [12000, 13500, 15000, 16500, 18000, 19500]
+  },
+  "competitors": [
+    {
+      "name": "Competitor A",
+      "color": "#dc3912",
+      "traffic": [10000, 11000, 12500, 13000, 14000, 15000]
+    },
+    {
+      "name": "Competitor B",
+      "color": "#ff9900",
+      "traffic": [9000, 9500, 10000, 10500, 11000, 11500]
+    },
+    {
+      "name": "Competitor C",
+      "color": "#109618",
+      "traffic": [8000, 8500, 8700, 9200, 9800, 10500]
+    },
+    {
+      "name": "Competitor D",
+      "color": "#990099",
+      "traffic": [15000, 15500, 16000, 17000, 18000, 19000]
+    },
+    {
+      "name": "Competitor E",
+      "color": "#0099c6",
+      "traffic": [7000, 7500, 8000, 8500, 9000, 9500]
+    }
+  ],
+  "consolidatedCompetitors": {
+    "name": "Average Competitors",
+    "color": "#999999",
+    "traffic": [9800, 10400, 11040, 11640, 12360, 12900]
+  }
+}
