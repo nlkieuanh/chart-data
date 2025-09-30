@@ -1,5 +1,4 @@
-
-// ===== Utility =====
+// ===== Common Utilities =====
 function chartHexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -8,14 +7,19 @@ function chartHexToRgba(hex, alpha) {
 }
 
 // ===== Detect & Process Data =====
-function chartProcessData(data, mode = 'direct') {
+function chartProcessData(data, mode = "direct") {
   const datasets = [];
 
-  // --- CASE 1: Time series (headcount, traffic, channels) ---
+  // --- CASE: Geo Distribution (ECharts map) ---
+  if (data.competitors && data.competitors[0].countries) {
+    return { type: "geo", competitors: data.competitors };
+  }
+
+  // --- CASE: Time series (headcount / traffic / channels by period) ---
   if (data.periods) {
-    if (mode === 'direct') {
+    if (mode === "direct") {
       if (data.yourCompany?.headcount || data.yourCompany?.traffic) {
-        const key = data.yourCompany.headcount ? 'headcount' : 'traffic';
+        const key = data.yourCompany.headcount ? "headcount" : "traffic";
         datasets.push({
           label: data.yourCompany.name,
           data: data.yourCompany[key],
@@ -60,8 +64,8 @@ function chartProcessData(data, mode = 'direct') {
           });
         });
       }
-    } else if (mode === 'consolidated' && data.consolidatedCompetitors) {
-      const key = data.consolidatedCompetitors.headcount ? 'headcount' : 'traffic';
+    } else if (mode === "consolidated" && data.consolidatedCompetitors) {
+      const key = data.consolidatedCompetitors.headcount ? "headcount" : "traffic";
       datasets.push({
         label: data.yourCompany.name,
         data: data.yourCompany[key],
@@ -81,16 +85,15 @@ function chartProcessData(data, mode = 'direct') {
         pointRadius: 4
       });
     }
-
-    return { type: 'line', labels: data.periods, datasets };
+    return { type: "line", labels: data.periods, datasets };
   }
 
-  // --- CASE 2: Sources / Devices ---
+  // --- CASE: Sources / Devices (bar) ---
   if (data.yourCompany.sources || data.yourCompany.devices) {
     const isSources = !!data.yourCompany.sources;
     const categories = Object.keys(isSources ? data.yourCompany.sources : data.yourCompany.devices);
 
-    if (mode === 'direct') {
+    if (mode === "direct") {
       datasets.push({
         label: data.yourCompany.name,
         data: Object.values(isSources ? data.yourCompany.sources : data.yourCompany.devices),
@@ -103,58 +106,19 @@ function chartProcessData(data, mode = 'direct') {
           backgroundColor: c.color
         });
       });
-    } else if (mode === 'consolidated' && data.consolidatedCompetitors) {
+    } else if (mode === "consolidated" && data.consolidatedCompetitors) {
       datasets.push({
         label: data.consolidatedCompetitors.name,
         data: Object.values(isSources ? data.consolidatedCompetitors.sources : data.consolidatedCompetitors.devices),
         backgroundColor: data.consolidatedCompetitors.color
       });
     }
-
-    return { type: 'bar', labels: categories, datasets };
+    return { type: "bar", labels: categories, datasets };
   }
 
-  // --- CASE 3: Geo Distribution ---
-  if (data.yourCompany.countries) {
-    let allCountries = new Set();
-    data.yourCompany.countries.forEach(c => allCountries.add(c.name));
-    data.competitors.forEach(comp => comp.countries.forEach(c => allCountries.add(c.name)));
-    allCountries = Array.from(allCountries);
-
-    function mapCountries(entity) {
-      return allCountries.map(cn => {
-        let match = entity.find(e => e.name === cn);
-        return match ? match.value : 0;
-      });
-    }
-
-    if (mode === 'direct') {
-      datasets.push({
-        label: data.yourCompany.name,
-        data: mapCountries(data.yourCompany.countries),
-        backgroundColor: data.yourCompany.color
-      });
-      data.competitors.forEach(c => {
-        datasets.push({
-          label: c.name,
-          data: mapCountries(c.countries),
-          backgroundColor: c.color
-        });
-      });
-    } else if (mode === 'consolidated' && data.consolidatedCompetitors) {
-      datasets.push({
-        label: data.consolidatedCompetitors.name,
-        data: mapCountries(data.consolidatedCompetitors.countries),
-        backgroundColor: data.consolidatedCompetitors.color
-      });
-    }
-
-    return { type: 'bar', labels: allCountries, datasets };
-  }
-
-  // --- CASE 4: Engagement Metrics ---
+  // --- CASE: Engagement Metrics (radar) ---
   if (data.metrics) {
-    if (mode === 'direct') {
+    if (mode === "direct") {
       datasets.push({
         label: data.yourCompany.name,
         data: data.yourCompany.values,
@@ -169,7 +133,7 @@ function chartProcessData(data, mode = 'direct') {
           backgroundColor: chartHexToRgba(c.color, 0.3)
         });
       });
-    } else if (mode === 'consolidated' && data.consolidatedCompetitors) {
+    } else if (mode === "consolidated" && data.consolidatedCompetitors) {
       datasets.push({
         label: data.consolidatedCompetitors.name,
         data: data.consolidatedCompetitors.values,
@@ -177,80 +141,107 @@ function chartProcessData(data, mode = 'direct') {
         backgroundColor: chartHexToRgba(data.consolidatedCompetitors.color, 0.3)
       });
     }
-
-    return { type: 'radar', labels: data.metrics, datasets };
+    return { type: "radar", labels: data.metrics, datasets };
   }
 
   return null;
 }
 
-// ===== Create Chart =====
+// ===== Chart Renderer =====
 function chartCreate(canvasId, data, mode) {
-  const ctx = document.getElementById(canvasId).getContext('2d');
-  if (window[canvasId + 'Chart']) {
-    window[canvasId + 'Chart'].destroy();
+  const canvas = document.getElementById(canvasId);
+
+  // CASE: Geo chart (ECharts)
+  if (data.type === "geo") {
+    if (window[canvasId + "Chart"]) {
+      window[canvasId + "Chart"].dispose?.();
+      window[canvasId + "Chart"] = null;
+    }
+
+    const myChart = echarts.init(canvas);
+    const series = data.competitors.map(c => ({
+      name: c.name,
+      type: "map",
+      map: "world",
+      roam: true,
+      emphasis: { label: { show: true } },
+      data: c.countries.map(country => ({ name: country.name, value: country.value }))
+    }));
+
+    const option = {
+      title: { text: "Traffic Geo", left: "center" },
+      tooltip: { trigger: "item" },
+      legend: { orient: "horizontal", bottom: 10, selectedMode: "multiple" },
+      visualMap: { min: 0, max: 8000, left: "left", top: "bottom", text: ["High","Low"], calculable: true },
+      series: series
+    };
+
+    myChart.setOption(option);
+    window[canvasId + "Chart"] = myChart;
+    return;
   }
 
-  const chartData = chartProcessData(data, mode);
-  if (!chartData) return;
+  // CASE: Other charts (Chart.js)
+  const ctx = canvas.getContext("2d");
+  if (window[canvasId + "Chart"]) {
+    window[canvasId + "Chart"].destroy();
+  }
 
   const config = {
-    type: chartData.type,
-    data: {
-      labels: chartData.labels,
-      datasets: chartData.datasets
-    },
-    options: {
+    type: data.type,
+    data: { labels: data.labels, datasets: data.datasets },
+    options: data.options || {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { position: 'top', labels: { usePointStyle: true } }
+        legend: { position: "top", labels: { usePointStyle: true } }
       }
     }
   };
 
-  window[canvasId + 'Chart'] = new Chart(ctx, config);
+  window[canvasId + "Chart"] = new Chart(ctx, config);
 }
 
-// ===== Load + Init =====
-async function chartLoadAndCreate(canvasId, jsonUrl, mode = 'direct') {
+// ===== Load JSON + Init =====
+async function chartLoadAndCreate(canvasId, jsonUrl, mode = "direct") {
   try {
     const res = await fetch(jsonUrl);
     const data = await res.json();
-    chartCreate(canvasId, data, mode);
+    const processed = chartProcessData(data, mode);
+    if (processed) {
+      chartCreate(canvasId, processed, mode);
+    }
   } catch (err) {
-    console.error('Error loading chart:', err);
+    console.error("Error loading chart:", err);
   }
 }
 
 function initChart(wrapper, jsonUrl) {
-  const canvas = wrapper.querySelector('canvas');
+  const canvas = wrapper.querySelector("canvas, div[id$='Chart']");
   if (!canvas) return;
   const chartId = canvas.id;
 
-  const btnDirect = wrapper.querySelector('.btn-direct');
-  const btnConsolidate = wrapper.querySelector('.btn-consolidate');
+  const btnDirect = wrapper.querySelector(".btn-direct");
+  const btnConsolidate = wrapper.querySelector(".btn-consolidate");
 
-  chartLoadAndCreate(chartId, jsonUrl, 'direct');
+  chartLoadAndCreate(chartId, jsonUrl, "direct");
   if (btnDirect) btnDirect.classList.add("is-active");
 
   if (btnDirect) {
-    btnDirect.addEventListener('click', e => {
+    btnDirect.addEventListener("click", e => {
       e.preventDefault();
-      chartLoadAndCreate(chartId, jsonUrl, 'direct');
+      chartLoadAndCreate(chartId, jsonUrl, "direct");
       btnDirect.classList.add("is-active");
       btnConsolidate?.classList.remove("is-active");
     });
   }
 
   if (btnConsolidate) {
-    btnConsolidate.addEventListener('click', e => {
+    btnConsolidate.addEventListener("click", e => {
       e.preventDefault();
-      chartLoadAndCreate(chartId, jsonUrl, 'consolidated');
+      chartLoadAndCreate(chartId, jsonUrl, "consolidated");
       btnConsolidate.classList.add("is-active");
       btnDirect?.classList.remove("is-active");
     });
   }
 }
-
