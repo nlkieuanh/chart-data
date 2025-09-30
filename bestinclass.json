@@ -33,7 +33,7 @@
   },
   "competitors": [
     {
-      "name": "Competitor A",
+      "name": "Competitor E",
       "color": "#dc3912",
       "headcount": [
         95,
@@ -51,7 +51,7 @@
       ]
     },
     {
-      "name": "Competitor B",
+      "name": "Competitor F",
       "color": "#ff9900",
       "headcount": [
         75,
@@ -69,7 +69,7 @@
       ]
     },
     {
-      "name": "Competitor C",
+      "name": "Competitor J",
       "color": "#109618",
       "headcount": [
         60,
@@ -87,7 +87,7 @@
       ]
     },
     {
-      "name": "Competitor D",
+      "name": "Competitor K",
       "color": "#990099",
       "headcount": [
         105,
