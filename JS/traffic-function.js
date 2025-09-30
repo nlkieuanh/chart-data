@@ -15,11 +15,16 @@ function chartProcessData(data, mode = "direct") {
     return { type: "geo", competitors: data.competitors };
   }
 
-  // --- CASE: Time series (headcount / traffic / channels by period) ---
+  // --- CASE: Time series (overview / headcount / channels by period) ---
   if (data.periods) {
     if (mode === "direct") {
-      if (data.yourCompany?.headcount || data.yourCompany?.traffic) {
-        const key = data.yourCompany.headcount ? "headcount" : "traffic";
+      const key = data.yourCompany.headcount
+        ? "headcount"
+        : data.yourCompany.traffic
+        ? "traffic"
+        : null;
+
+      if (key) {
         datasets.push({
           label: data.yourCompany.name,
           data: data.yourCompany[key],
@@ -27,9 +32,9 @@ function chartProcessData(data, mode = "direct") {
           backgroundColor: chartHexToRgba(data.yourCompany.color, 0.2),
           borderWidth: 3,
           fill: false,
-          pointRadius: 4
+          pointRadius: 4,
         });
-        data.competitors.forEach(c => {
+        data.competitors.forEach((c) => {
           datasets.push({
             label: c.name,
             data: c[key],
@@ -38,34 +43,14 @@ function chartProcessData(data, mode = "direct") {
             borderWidth: 2,
             borderDash: [3, 3],
             fill: false,
-            pointRadius: 3
-          });
-        });
-      } else if (data.yourCompany?.channels) {
-        Object.keys(data.yourCompany.channels).forEach(channel => {
-          datasets.push({
-            label: data.yourCompany.name + " - " + channel,
-            data: data.yourCompany.channels[channel],
-            borderColor: data.yourCompany.color,
-            backgroundColor: chartHexToRgba(data.yourCompany.color, 0.2),
-            fill: false
-          });
-        });
-        data.competitors.forEach(c => {
-          Object.keys(c.channels).forEach(channel => {
-            datasets.push({
-              label: c.name + " - " + channel,
-              data: c.channels[channel],
-              borderColor: c.color,
-              backgroundColor: chartHexToRgba(c.color, 0.15),
-              borderDash: [5, 5],
-              fill: false
-            });
+            pointRadius: 3,
           });
         });
       }
     } else if (mode === "consolidated" && data.consolidatedCompetitors) {
-      const key = data.consolidatedCompetitors.headcount ? "headcount" : "traffic";
+      const key = data.consolidatedCompetitors.headcount
+        ? "headcount"
+        : "traffic";
       datasets.push({
         label: data.yourCompany.name,
         data: data.yourCompany[key],
@@ -73,44 +58,92 @@ function chartProcessData(data, mode = "direct") {
         backgroundColor: chartHexToRgba(data.yourCompany.color, 0.2),
         borderWidth: 3,
         fill: false,
-        pointRadius: 4
+        pointRadius: 4,
       });
       datasets.push({
         label: data.consolidatedCompetitors.name,
         data: data.consolidatedCompetitors[key],
         borderColor: data.consolidatedCompetitors.color,
-        backgroundColor: chartHexToRgba(data.consolidatedCompetitors.color, 0.15),
+        backgroundColor: chartHexToRgba(
+          data.consolidatedCompetitors.color,
+          0.15
+        ),
         borderDash: [5, 5],
         fill: false,
-        pointRadius: 4
+        pointRadius: 4,
       });
     }
     return { type: "line", labels: data.periods, datasets };
   }
 
-  // --- CASE: Sources / Devices (bar) ---
-  if (data.yourCompany.sources || data.yourCompany.devices) {
-    const isSources = !!data.yourCompany.sources;
-    const categories = Object.keys(isSources ? data.yourCompany.sources : data.yourCompany.devices);
+  // --- CASE: Sources (bar vs dual doughnut) ---
+  if (data.yourCompany.sources) {
+    const categories = Object.keys(data.yourCompany.sources);
 
+    if (mode === "direct") {
+      const datasets = [
+        {
+          label: data.yourCompany.name,
+          data: Object.values(data.yourCompany.sources),
+          backgroundColor: data.yourCompany.color,
+        },
+      ];
+      data.competitors.forEach((c) => {
+        datasets.push({
+          label: c.name,
+          data: Object.values(c.sources),
+          backgroundColor: c.color,
+        });
+      });
+      return { type: "bar", labels: categories, datasets };
+    } else if (mode === "consolidated" && data.consolidatedCompetitors) {
+      return {
+        type: "doughnut-dual",
+        company: {
+          labels: categories,
+          datasets: [
+            {
+              label: data.yourCompany.name,
+              data: Object.values(data.yourCompany.sources),
+              backgroundColor: ["#3366cc", "#109618", "#ff9900", "#dc3912"],
+            },
+          ],
+        },
+        consolidated: {
+          labels: categories,
+          datasets: [
+            {
+              label: data.consolidatedCompetitors.name,
+              data: Object.values(data.consolidatedCompetitors.sources),
+              backgroundColor: ["#3366cc", "#109618", "#ff9900", "#dc3912"],
+            },
+          ],
+        },
+      };
+    }
+  }
+
+  // --- CASE: Devices (bar) ---
+  if (data.yourCompany.devices) {
+    const categories = Object.keys(data.yourCompany.devices);
     if (mode === "direct") {
       datasets.push({
         label: data.yourCompany.name,
-        data: Object.values(isSources ? data.yourCompany.sources : data.yourCompany.devices),
-        backgroundColor: data.yourCompany.color
+        data: Object.values(data.yourCompany.devices),
+        backgroundColor: data.yourCompany.color,
       });
-      data.competitors.forEach(c => {
+      data.competitors.forEach((c) => {
         datasets.push({
           label: c.name,
-          data: Object.values(isSources ? c.sources : c.devices),
-          backgroundColor: c.color
+          data: Object.values(c.devices),
+          backgroundColor: c.color,
         });
       });
     } else if (mode === "consolidated" && data.consolidatedCompetitors) {
       datasets.push({
         label: data.consolidatedCompetitors.name,
-        data: Object.values(isSources ? data.consolidatedCompetitors.sources : data.consolidatedCompetitors.devices),
-        backgroundColor: data.consolidatedCompetitors.color
+        data: Object.values(data.consolidatedCompetitors.devices),
+        backgroundColor: data.consolidatedCompetitors.color,
       });
     }
     return { type: "bar", labels: categories, datasets };
@@ -123,14 +156,14 @@ function chartProcessData(data, mode = "direct") {
         label: data.yourCompany.name,
         data: data.yourCompany.values,
         borderColor: data.yourCompany.color,
-        backgroundColor: chartHexToRgba(data.yourCompany.color, 0.3)
+        backgroundColor: chartHexToRgba(data.yourCompany.color, 0.3),
       });
-      data.competitors.forEach(c => {
+      data.competitors.forEach((c) => {
         datasets.push({
           label: c.name,
           data: c.values,
           borderColor: c.color,
-          backgroundColor: chartHexToRgba(c.color, 0.3)
+          backgroundColor: chartHexToRgba(c.color, 0.3),
         });
       });
     } else if (mode === "consolidated" && data.consolidatedCompetitors) {
@@ -138,10 +171,31 @@ function chartProcessData(data, mode = "direct") {
         label: data.consolidatedCompetitors.name,
         data: data.consolidatedCompetitors.values,
         borderColor: data.consolidatedCompetitors.color,
-        backgroundColor: chartHexToRgba(data.consolidatedCompetitors.color, 0.3)
+        backgroundColor: chartHexToRgba(
+          data.consolidatedCompetitors.color,
+          0.3
+        ),
       });
     }
     return { type: "radar", labels: data.metrics, datasets };
+  }
+
+  // --- CASE: Channels snapshot (stacked horizontal) ---
+  if (data.yourCompany.channels && !data.periods) {
+    const categories = Object.keys(data.yourCompany.channels);
+    let datasets = categories.map((cat) => ({
+      label: cat,
+      data: [
+        data.yourCompany.channels[cat],
+        ...data.competitors.map((c) => c.channels[cat]),
+      ],
+    }));
+    return {
+      type: "bar",
+      labels: [data.yourCompany.name, ...data.competitors.map((c) => c.name)],
+      datasets,
+      options: { indexAxis: "y", responsive: true, scales: { x: { stacked: true }, y: { stacked: true } } }
+    };
   }
 
   return null;
@@ -157,27 +211,54 @@ function chartCreate(canvasId, data, mode) {
       window[canvasId + "Chart"].dispose?.();
       window[canvasId + "Chart"] = null;
     }
-
     const myChart = echarts.init(canvas);
-    const series = data.competitors.map(c => ({
+    const series = data.competitors.map((c) => ({
       name: c.name,
       type: "map",
       map: "world",
       roam: true,
       emphasis: { label: { show: true } },
-      data: c.countries.map(country => ({ name: country.name, value: country.value }))
+      data: c.countries.map((country) => ({
+        name: country.name,
+        value: country.value,
+      })),
     }));
-
     const option = {
       title: { text: "Traffic Geo", left: "center" },
       tooltip: { trigger: "item" },
       legend: { orient: "horizontal", bottom: 10, selectedMode: "multiple" },
-      visualMap: { min: 0, max: 8000, left: "left", top: "bottom", text: ["High","Low"], calculable: true },
-      series: series
+      visualMap: {
+        min: 0,
+        max: 8000,
+        left: "left",
+        top: "bottom",
+        text: ["High", "Low"],
+        calculable: true,
+      },
+      series: series,
     };
-
     myChart.setOption(option);
     window[canvasId + "Chart"] = myChart;
+    return;
+  }
+
+  // CASE: Dual Doughnut (Sources consolidated)
+  if (data.type === "doughnut-dual") {
+    const container = document.getElementById(canvasId).parentNode;
+    container.innerHTML = `
+      <div style="display:flex;gap:20px;width:100%;height:100%;">
+        <canvas id="${canvasId}-company"></canvas>
+        <canvas id="${canvasId}-consolidated"></canvas>
+      </div>
+    `;
+    const ctx1 = document
+      .getElementById(`${canvasId}-company`)
+      .getContext("2d");
+    const ctx2 = document
+      .getElementById(`${canvasId}-consolidated`)
+      .getContext("2d");
+    new Chart(ctx1, { type: "doughnut", data: data.company });
+    new Chart(ctx2, { type: "doughnut", data: data.consolidated });
     return;
   }
 
@@ -186,7 +267,6 @@ function chartCreate(canvasId, data, mode) {
   if (window[canvasId + "Chart"]) {
     window[canvasId + "Chart"].destroy();
   }
-
   const config = {
     type: data.type,
     data: { labels: data.labels, datasets: data.datasets },
@@ -194,11 +274,10 @@ function chartCreate(canvasId, data, mode) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: "top", labels: { usePointStyle: true } }
-      }
-    }
+        legend: { position: "top", labels: { usePointStyle: true } },
+      },
+    },
   };
-
   window[canvasId + "Chart"] = new Chart(ctx, config);
 }
 
@@ -228,7 +307,7 @@ function initChart(wrapper, jsonUrl) {
   if (btnDirect) btnDirect.classList.add("is-active");
 
   if (btnDirect) {
-    btnDirect.addEventListener("click", e => {
+    btnDirect.addEventListener("click", (e) => {
       e.preventDefault();
       chartLoadAndCreate(chartId, jsonUrl, "direct");
       btnDirect.classList.add("is-active");
@@ -237,7 +316,7 @@ function initChart(wrapper, jsonUrl) {
   }
 
   if (btnConsolidate) {
-    btnConsolidate.addEventListener("click", e => {
+    btnConsolidate.addEventListener("click", (e) => {
       e.preventDefault();
       chartLoadAndCreate(chartId, jsonUrl, "consolidated");
       btnConsolidate.classList.add("is-active");
