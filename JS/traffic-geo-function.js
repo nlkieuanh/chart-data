@@ -1,8 +1,10 @@
 // traffic-geo-function.js
-// Geo Chart with Chart.js Geo Plugin (no switch mode)
+// Geo Chart with Chart.js Geo Plugin (no switch mode, Webflow embed standard)
 
-async function orgLoadAndCreateGeoChart(canvasId, jsonUrl) {
-  const ctx = document.getElementById(canvasId).getContext("2d");
+async function initChart(wrapper, jsonUrl) {
+  const canvas = wrapper.querySelector("canvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
 
   // Fetch data
   const response = await fetch(jsonUrl);
@@ -44,12 +46,12 @@ async function orgLoadAndCreateGeoChart(canvasId, jsonUrl) {
   const datasets = [buildDataset(data.yourCompany), ...data.competitors.map(buildDataset)];
 
   // Destroy old chart if exists
-  if (window.geoChartInstance) {
-    window.geoChartInstance.destroy();
+  if (canvas._chartInstance) {
+    canvas._chartInstance.destroy();
   }
 
   // Create chart
-  window.geoChartInstance = new Chart(ctx, {
+  canvas._chartInstance = new Chart(ctx, {
     type: "choropleth",
     data: {
       labels: world.map((d) => d.properties.name),
