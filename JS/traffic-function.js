@@ -1,4 +1,4 @@
-/* ========== traffic-function.js (Overview, Sources, Channels, Geo) ========== */
+/* ========== traffic-function.js (Overview, Sources, Channels) ========== */
 
 // Utils
 function chartHexToRgba(hex, alpha) {
@@ -7,9 +7,6 @@ function chartHexToRgba(hex, alpha) {
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r},${g},${b},${alpha})`;
 }
-
-const GEO_NAME_FIX = { US: "United States of America", UK: "United Kingdom" };
-function normalizeCountryName(name) { return GEO_NAME_FIX[name] || name; }
 
 // Process Data
 function chartProcessData(data, mode = "direct") {
@@ -93,28 +90,12 @@ function chartProcessData(data, mode = "direct") {
     }
   }
 
-  // --- Geo (choropleth map) ---
-  if (data.competitors && data.competitors[0]?.countries) {
-    return { type:"geo", competitors:data.competitors };
-  }
-
-  return null;
-}
-
-// Render
+  // Render
 function chartCreate(canvasId, processed) {
   const canvas=document.getElementById(canvasId);
   if(window[canvasId+"Chart"]) window[canvasId+"Chart"].destroy();
 
-  if(processed.type==="geo"){
-    fetch("https://cdn.jsdelivr.net/npm/world-atlas/countries-110m.json")
-    .then(r=>r.json()).then(topology=>{
-      const countries=ChartGeo.topojson.feature(topology, topology.objects.countries).features;
-      const datasets=processed.competitors.map(c=>({
-        label:c.name,
-        data:c.countries.map(ct=>{
-          const f=countries.find(f=>f.properties.name===normalizeCountryName(ct.name));
-          return f?{feature:f,value:ct.value}:null;
+  :null;
         }).filter(Boolean),
         backgroundColor:c.color
       }));
