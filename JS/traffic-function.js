@@ -10,7 +10,7 @@ function chartHexToRgba(hex, alpha) {
 
 // Process Data
 function chartProcessData(data, mode = "direct") {
-  // --- Overview ---
+  // --- Overview (line) ---
   if (data.periods && data.yourCompany?.traffic) {
     const mkLine = (label, values, color, dash) => ({
       label, data: values, borderColor: color, borderDash: dash?[4,4]:undefined, fill:false
@@ -90,10 +90,21 @@ function chartProcessData(data, mode = "direct") {
     }
   }
 
-  // Render
+  // Loại bỏ Geo (choropleth map)
+  // if (data.competitors && data.competitors[0]?.countries) {
+  //   return { type:"geo", competitors:data.competitors };
+  // }
+
+  return null;
+}
+
+// Render
 function chartCreate(canvasId, processed) {
   const canvas=document.getElementById(canvasId);
   if(window[canvasId+"Chart"]) window[canvasId+"Chart"].destroy();
+
+  // Loại bỏ logic xử lý chart "geo"
+
   window[canvasId+"Chart"]=new Chart(canvas.getContext("2d"),{
     type:processed.type,
     data:{labels:processed.labels,datasets:processed.datasets},
