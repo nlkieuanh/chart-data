@@ -94,24 +94,6 @@ function chartProcessData(data, mode = "direct") {
 function chartCreate(canvasId, processed) {
   const canvas=document.getElementById(canvasId);
   if(window[canvasId+"Chart"]) window[canvasId+"Chart"].destroy();
-
-  :null;
-        }).filter(Boolean),
-        backgroundColor:c.color
-      }));
-      window[canvasId+"Chart"]=new Chart(canvas.getContext("2d"),{
-        type:"choropleth",
-        data:{labels:countries.map(d=>d.properties.name),datasets},
-        options:{
-          showOutline:true,showGraticule:true,
-          scales:{projection:{projection:"equalEarth"},color:{quantize:5}},
-          plugins:{legend:{position:"top"}}
-        }
-      })
-    });
-    return;
-  }
-
   window[canvasId+"Chart"]=new Chart(canvas.getContext("2d"),{
     type:processed.type,
     data:{labels:processed.labels,datasets:processed.datasets},
