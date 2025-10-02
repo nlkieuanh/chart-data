@@ -53,12 +53,4 @@
       }
     }
   ],
-  "consolidatedCompetitors": {
-    "name": "Average Competitors",
-    "color": "#0099c6",
-    "values": {
-      "Desktop": 3.4,
-      "Mobile": 3.2
-    }
-  }
 }
