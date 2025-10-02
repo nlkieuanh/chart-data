@@ -11,38 +11,38 @@
   "yourCompany": {
     "name": "Your Company",
     "color": "#3366cc",
-    "headcount": [120, 30, 50, 40, 25, 15, 10]
+    "values": [120, 30, 50, 40, 25, 15, 10]
   },
   "competitors": [
     {
       "name": "Competitor A",
       "color": "#dc3912",
-      "headcount": [100, 25, 60, 30, 20, 12, 8]
+      "values": [100, 25, 60, 30, 20, 12, 8]
     },
     {
       "name": "Competitor B",
       "color": "#ff9900",
-      "headcount": [90, 28, 55, 35, 22, 10, 12]
+      "values": [90, 28, 55, 35, 22, 10, 12]
     },
     {
       "name": "Competitor C",
       "color": "#109618",
-      "headcount": [130, 32, 48, 42, 27, 18, 15]
+      "values": [130, 32, 48, 42, 27, 18, 15]
     },
     {
       "name": "Competitor D",
       "color": "#990099",
-      "headcount": [110, 27, 52, 38, 23, 14, 11]
+      "values": [110, 27, 52, 38, 23, 14, 11]
     },
     {
       "name": "Competitor E",
       "color": "#dd4477",
-      "headcount": [95, 24, 58, 33, 19, 13, 9]
+      "values": [95, 24, 58, 33, 19, 13, 9]
     }
   ],
   "consolidatedCompetitors": {
     "name": "Average Competitors",
     "color": "#0099c6",
-    "headcount": [105, 27.2, 54.6, 35.6, 22.2, 13.4, 11]
+    "values": [105, 27.2, 54.6, 35.6, 22.2, 13.4, 11]
   }
 }
