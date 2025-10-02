@@ -88,18 +88,15 @@ function webCreateMirrorBarChart(ctx, data, mode, valueType) {
 
   const periods = data.periods; // ["Desktop","Mobile"]
 
-  // helper để lấy dataset values từ values object
   function getValues(valuesObj) {
-    const arr = periods.map(p => valuesObj[p] || 0);
-    return valueType === "percent" ? chartToPercent(arr) : arr;
+    return periods.map(p => valuesObj[p] || 0);
   }
 
-  // Chuẩn hoá labels (companies)
   const labels = mode === "direct"
     ? [data.yourCompany, ...data.competitors].map(c => c.name)
     : [data.yourCompany.name, data.consolidatedCompetitors.name];
 
-  // Lấy dataset Desktop/Mobile
+  // Desktop (âm), Mobile (dương)
   const desktopData = mode === "direct"
     ? [data.yourCompany, ...data.competitors].map(c => -(getValues(c.values)[0]))
     : [-(getValues(data.yourCompany.values)[0]), -(getValues(data.consolidatedCompetitors.values)[0])];
@@ -108,6 +105,15 @@ function webCreateMirrorBarChart(ctx, data, mode, valueType) {
     ? [data.yourCompany, ...data.competitors].map(c => getValues(c.values)[1])
     : [getValues(data.yourCompany.values)[1], getValues(data.consolidatedCompetitors.values)[1]];
 
+  // Nếu chuyển sang % thì normalize về tổng Desktop+Mobile
+  function normalize(dataArr) {
+    const absVals = dataArr.map(v => Math.abs(v));
+    return chartToPercent(absVals).map((v, i) => dataArr[i] < 0 ? -v : v);
+  }
+
+  const finalDesktop = valueType === "percent" ? normalize(desktopData) : desktopData;
+  const finalMobile = valueType === "percent" ? normalize(mobileData) : mobileData;
+
   window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
     type: "bar",
     data: {
@@ -115,12 +121,12 @@ function webCreateMirrorBarChart(ctx, data, mode, valueType) {
       datasets: [
         {
           label: "Desktop",
-          data: desktopData,
+          data: finalDesktop,
           backgroundColor: chartHexToRgba("#3366cc", 0.7)
         },
         {
           label: "Mobile",
-          data: mobileData,
+          data: finalMobile,
           backgroundColor: chartHexToRgba("#ff9900", 0.7)
         }
       ]
@@ -132,9 +138,9 @@ function webCreateMirrorBarChart(ctx, data, mode, valueType) {
       plugins: {
         legend: { position: "top" },
         datalabels: {
-          anchor: "end",
-          align: ctx => ctx.dataset.label === "Desktop" ? "left" : "right",
-          color: "#333",
+          anchor: "center",
+          align: "center",
+          color: "#fff",
           font: { size: 12, weight: "bold" },
           formatter: function(value) {
             if (value === 0) return "";
@@ -144,8 +150,8 @@ function webCreateMirrorBarChart(ctx, data, mode, valueType) {
       },
       scales: {
         x: {
-          min: -5,
-          max: 5,
+          min: valueType === "percent" ? -100 : -5,
+          max: valueType === "percent" ? 100 : 5,
           ticks: {
             callback: function(value) {
               return Math.abs(value);
