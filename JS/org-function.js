@@ -302,7 +302,7 @@ function orgCreateGeoWorkforceChart(ctx, data, mode, valueType) {
           anchor: "center",
           align: "center",
           color: "#fff",
-          font: { size: 9, weight: "bold" },
+          font: { size: 12, weight: "normal" },
           formatter: function(value) {
             if (value === 0) return "";
             return valueType === "percent" ? value + "%" : value;
