@@ -15,7 +15,7 @@ function chartToPercent(arr) {
   return arr.map(v => total > 0 ? +(v / total * 100).toFixed(1) : 0);
 }
 
-// ========== Org Page Functions ==========
+// ========== Org Init ==========
 function orgInitChart(wrapper, dataUrl) {
   const canvas = wrapper.querySelector("canvas");
   const ctx = canvas.getContext("2d");
@@ -23,21 +23,23 @@ function orgInitChart(wrapper, dataUrl) {
   fetch(dataUrl)
     .then(res => res.json())
     .then(data => {
-      const isHeadcount = !!data.yourCompany.headcount && !data.yourCompany.performance;
-      const isPerformance = !!data.yourCompany.performance && data.periods.length <= 6;
-      const isDepartment = !!data.yourCompany.headcount && data.periods.length > 6;
+      // detect loại chart
+      const periodsCount = data.periods.length;
+      const isLine = periodsCount >= 10;              // overall headcount (12 tháng)
+      const isStacked = periodsCount > 6 && periodsCount < 10; // department distribution
+      const isGrouped = !isLine && !isStacked;        // performance / marketing
 
-      // default mode
+      // state mặc định
       let currentMode = "direct";     // direct | consolidate
-      let currentValue = "absolute";  // absolute | percent (only for department)
+      let currentValue = "absolute";  // absolute | percent (chỉ cho department)
 
-      // render initial
-      if (isHeadcount) {
-        orgCreateHeadcountChart(ctx, data, currentMode);
-      } else if (isPerformance) {
-        orgCreatePerformanceChart(ctx, data, currentMode);
-      } else if (isDepartment) {
-        orgCreateDepartmentChart(ctx, data, currentMode, currentValue);
+      // render chart đầu tiên
+      if (isLine) {
+        orgCreateLineChart(ctx, data, currentMode);
+      } else if (isGrouped) {
+        orgCreateGroupedChart(ctx, data, currentMode);
+      } else if (isStacked) {
+        orgCreateStackedChart(ctx, data, currentMode, currentValue);
       }
 
       // attach switch
@@ -54,29 +56,29 @@ function orgInitChart(wrapper, dataUrl) {
 
       if (btnDirect) btnDirect.addEventListener("click", () => {
         currentMode = "direct";
-        if (isHeadcount) orgCreateHeadcountChart(ctx, data, currentMode);
-        if (isPerformance) orgCreatePerformanceChart(ctx, data, currentMode);
-        if (isDepartment) orgCreateDepartmentChart(ctx, data, currentMode, currentValue);
+        if (isLine) orgCreateLineChart(ctx, data, currentMode);
+        if (isGrouped) orgCreateGroupedChart(ctx, data, currentMode);
+        if (isStacked) orgCreateStackedChart(ctx, data, currentMode, currentValue);
         setActive(btnDirect);
       });
 
       if (btnConsolidate) btnConsolidate.addEventListener("click", () => {
         currentMode = "consolidate";
-        if (isHeadcount) orgCreateHeadcountChart(ctx, data, currentMode);
-        if (isPerformance) orgCreatePerformanceChart(ctx, data, currentMode);
-        if (isDepartment) orgCreateDepartmentChart(ctx, data, currentMode, currentValue);
+        if (isLine) orgCreateLineChart(ctx, data, currentMode);
+        if (isGrouped) orgCreateGroupedChart(ctx, data, currentMode);
+        if (isStacked) orgCreateStackedChart(ctx, data, currentMode, currentValue);
         setActive(btnConsolidate);
       });
 
       if (btnAbs) btnAbs.addEventListener("click", () => {
         currentValue = "absolute";
-        if (isDepartment) orgCreateDepartmentChart(ctx, data, currentMode, currentValue);
+        if (isStacked) orgCreateStackedChart(ctx, data, currentMode, currentValue);
         setActive(btnAbs);
       });
 
       if (btnPct) btnPct.addEventListener("click", () => {
         currentValue = "percent";
-        if (isDepartment) orgCreateDepartmentChart(ctx, data, currentMode, currentValue);
+        if (isStacked) orgCreateStackedChart(ctx, data, currentMode, currentValue);
         setActive(btnPct);
       });
 
@@ -86,15 +88,15 @@ function orgInitChart(wrapper, dataUrl) {
     .catch(err => console.error("Error loading chart data:", err));
 }
 
-// ========== Headcount (Line Chart) ==========
-function orgCreateHeadcountChart(ctx, data, mode) {
+// ========== Line Chart (Overall Headcount) ==========
+function orgCreateLineChart(ctx, data, mode) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
 
   let datasets = [];
   if (mode === "direct") {
     datasets.push({
       label: data.yourCompany.name,
-      data: data.yourCompany.headcount,
+      data: data.yourCompany.values,
       borderColor: data.yourCompany.color,
       backgroundColor: chartHexToRgba(data.yourCompany.color, 0.5),
       tension: 0.3
@@ -102,7 +104,7 @@ function orgCreateHeadcountChart(ctx, data, mode) {
     data.competitors.forEach(c => {
       datasets.push({
         label: c.name,
-        data: c.headcount,
+        data: c.values,
         borderColor: c.color,
         backgroundColor: chartHexToRgba(c.color, 0.5),
         borderDash: [4, 2],
@@ -112,14 +114,14 @@ function orgCreateHeadcountChart(ctx, data, mode) {
   } else {
     datasets.push({
       label: data.yourCompany.name,
-      data: data.yourCompany.headcount,
+      data: data.yourCompany.values,
       borderColor: data.yourCompany.color,
       backgroundColor: chartHexToRgba(data.yourCompany.color, 0.5),
       tension: 0.3
     });
     datasets.push({
       label: data.consolidatedCompetitors.name,
-      data: data.consolidatedCompetitors.headcount,
+      data: data.consolidatedCompetitors.values,
       borderColor: data.consolidatedCompetitors.color,
       backgroundColor: chartHexToRgba(data.consolidatedCompetitors.color, 0.5),
       borderDash: [6, 3],
@@ -134,30 +136,35 @@ function orgCreateHeadcountChart(ctx, data, mode) {
   });
 }
 
-// ========== Performance (Grouped Bar) ==========
-function orgCreatePerformanceChart(ctx, data, mode) {
+// ========== Grouped Bar Chart (Performance / Marketing) ==========
+function orgCreateGroupedChart(ctx, data, mode) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
 
   let datasets = [];
   if (mode === "direct") {
-    datasets.push({ label: data.yourCompany.name, data: data.yourCompany.performance, backgroundColor: data.yourCompany.color });
+    datasets.push({ label: data.yourCompany.name, data: data.yourCompany.values, backgroundColor: data.yourCompany.color });
     data.competitors.forEach(c => {
-      datasets.push({ label: c.name, data: c.performance, backgroundColor: c.color });
+      datasets.push({ label: c.name, data: c.values, backgroundColor: c.color });
     });
   } else {
-    datasets.push({ label: data.yourCompany.name, data: data.yourCompany.performance, backgroundColor: data.yourCompany.color });
-    datasets.push({ label: data.consolidatedCompetitors.name, data: data.consolidatedCompetitors.performance, backgroundColor: data.consolidatedCompetitors.color });
+    datasets.push({ label: data.yourCompany.name, data: data.yourCompany.values, backgroundColor: data.yourCompany.color });
+    datasets.push({ label: data.consolidatedCompetitors.name, data: data.consolidatedCompetitors.values, backgroundColor: data.consolidatedCompetitors.color });
   }
 
   window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
     type: "bar",
     data: { labels: data.periods, datasets },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } }, scales: { x: { stacked: false }, y: { beginAtZero: true } } }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom" } },
+      scales: { x: { stacked: false }, y: { beginAtZero: true } }
+    }
   });
 }
 
-// ========== Department (Stacked Bar) ==========
-function orgCreateDepartmentChart(ctx, data, mode, valueType) {
+// ========== Stacked Bar Chart (Department Distribution) ==========
+function orgCreateStackedChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
 
   const labels = mode === "direct"
@@ -166,13 +173,13 @@ function orgCreateDepartmentChart(ctx, data, mode, valueType) {
 
   const datasets = data.periods.map((dept, i) => {
     let deptValues = mode === "direct"
-      ? [data.yourCompany.headcount[i], ...data.competitors.map(c => c.headcount[i])]
-      : [data.yourCompany.headcount[i], data.consolidatedCompetitors.headcount[i]];
+      ? [data.yourCompany.values[i], ...data.competitors.map(c => c.values[i])]
+      : [data.yourCompany.values[i], data.consolidatedCompetitors.values[i]];
 
     if (valueType === "percent") {
       deptValues = mode === "direct"
-        ? [chartToPercent(data.yourCompany.headcount)[i], ...data.competitors.map(c => chartToPercent(c.headcount)[i])]
-        : [chartToPercent(data.yourCompany.headcount)[i], chartToPercent(data.consolidatedCompetitors.headcount)[i]];
+        ? [chartToPercent(data.yourCompany.values)[i], ...data.competitors.map(c => chartToPercent(c.values)[i])]
+        : [chartToPercent(data.yourCompany.values)[i], chartToPercent(data.consolidatedCompetitors.values)[i]];
     }
 
     const colors = ["#3366cc", "#dc3912", "#ff9900", "#109618", "#990099", "#0099c6", "#dd4477"];
