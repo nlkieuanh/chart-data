@@ -1,0 +1,80 @@
+{
+  "periods": ["US", "UK", "IN", "VN", "DE", "FR", "JP", "CA", "BR"],
+  "yourCompany": {
+    "name": "Your Company",
+    "color": "#3366cc",
+    "values": {
+      "US": 500,
+      "IN": 300,
+      "VN": 200,
+      "JP": 100
+    }
+  },
+  "competitors": [
+    {
+      "name": "BioGaia",
+      "color": "#dc3912",
+      "values": {
+        "US": 600,
+        "VN": 150,
+        "IN": 200,
+        "CA": 50
+      }
+    },
+    {
+      "name": "Proby",
+      "color": "#ff9900",
+      "values": {
+        "US": 400,
+        "BR": 100,
+        "FR": 120,
+        "IN": 250
+      }
+    },
+    {
+      "name": "Yakult",
+      "color": "#109618",
+      "values": {
+        "CA": 220,
+        "DE": 280,
+        "JP": 130,
+        "BR": 60
+      }
+    },
+    {
+      "name": "Dr.Bio",
+      "color": "#990099",
+      "values": {
+        "US": 550,
+        "JP": 180,
+        "DE": 90,
+        "IN": 310
+      }
+    },
+    {
+      "name": "EcoBio",
+      "color": "#dd4477",
+      "values": {
+        "US": 480,
+        "FR": 140,
+        "VN": 120,
+        "IN": 260
+      }
+    }
+  ],
+  "consolidatedCompetitors": {
+    "name": "Average Competitors",
+    "color": "#0099c6",
+    "values": {
+      "US": 206,
+      "UK": 166,
+      "IN": 260,
+      "VN": 144,
+      "DE": 33,
+      "FR": 63,
+      "JP": 80,
+      "CA": 110,
+      "BR": 112
+    }
+  }
+}
