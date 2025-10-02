@@ -16,7 +16,7 @@
   "yourCompany": {
     "name": "Your Company",
     "color": "#3366cc",
-    "headcount": [
+    "values": [
       120,
       125,
       133,
@@ -35,7 +35,7 @@
     {
       "name": "BioGaia",
       "color": "#dc3912",
-      "headcount": [
+      "values": [
         95,
         100,
         106,
@@ -53,7 +53,7 @@
     {
       "name": "Yakult Honsha Co., Ltd.",
       "color": "#ff9900",
-      "headcount": [
+      "values": [
         75,
         80,
         86,
@@ -71,7 +71,7 @@
     {
       "name": "Danone",
       "color": "#109618",
-      "headcount": [
+      "values": [
         60,
         65,
         72,
@@ -89,7 +89,7 @@
     {
       "name": "Probi",
       "color": "#990099",
-      "headcount": [
+      "values": [
         105,
         110,
         118,
@@ -108,7 +108,7 @@
   "consolidatedCompetitors": {
     "name": "Average Competitors",
     "color": "#0099c6",
-    "headcount": [
+    "values": [
       105,
       155,
       132,
