@@ -1,0 +1,40 @@
+{
+  "periods": ["Influencer", "Paid Search", "SEO", "Affiliate"],
+  "yourCompany": {
+    "name": "Your Company",
+    "color": "#3366cc",
+    "performance": [85, 78, 92, 70]
+  },
+  "competitors": [
+    {
+      "name": "Competitor A",
+      "color": "#dc3912",
+      "performance": [70, 82, 68, 75]
+    },
+    {
+      "name": "Competitor B",
+      "color": "#ff9900",
+      "performance": [65, 75, 80, 60]
+    },
+    {
+      "name": "Competitor C",
+      "color": "#109618",
+      "performance": [80, 70, 85, 65]
+    },
+    {
+      "name": "Competitor D",
+      "color": "#990099",
+      "performance": [75, 88, 72, 80]
+    },
+    {
+      "name": "Competitor E",
+      "color": "#dd4477",
+      "performance": [60, 65, 78, 70]
+    }
+  ],
+  "consolidatedCompetitors": {
+    "name": "Average Competitors",
+    "color": "#0099c6",
+    "performance": [69, 76, 76.6, 70]
+  }
+}
