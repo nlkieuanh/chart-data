@@ -15,7 +15,7 @@
       "name": "BioGaia",
       "color": "#dc3912",
       "values": {
-        "US": 600,
+        "UK": 600,
         "VN": 150,
         "IN": 200,
         "CA": 50
@@ -25,7 +25,7 @@
       "name": "Proby",
       "color": "#ff9900",
       "values": {
-        "US": 400,
+        "VN": 400,
         "BR": 100,
         "FR": 120,
         "IN": 250
@@ -55,7 +55,7 @@
       "name": "EcoBio",
       "color": "#dd4477",
       "values": {
-        "US": 480,
+        "UK": 480,
         "FR": 140,
         "VN": 120,
         "IN": 260
