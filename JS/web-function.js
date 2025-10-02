@@ -122,12 +122,14 @@ function webCreateMirrorBarChart(ctx, data, mode, valueType) {
         {
           label: "Desktop",
           data: finalDesktop,
-          backgroundColor: chartHexToRgba("#3366cc", 0.7)
+          backgroundColor: chartHexToRgba("#3366cc", 0.7),
+          stack: "Stack 0"
         },
         {
           label: "Mobile",
           data: finalMobile,
-          backgroundColor: chartHexToRgba("#ff9900", 0.7)
+          backgroundColor: chartHexToRgba("#ff9900", 0.7),
+          stack: "Stack 0"
         }
       ]
     },
@@ -152,11 +154,15 @@ function webCreateMirrorBarChart(ctx, data, mode, valueType) {
         x: {
           min: valueType === "percent" ? -100 : -5,
           max: valueType === "percent" ? 100 : 5,
+          stacked: true,
           ticks: {
             callback: function(value) {
               return Math.abs(value);
             }
           }
+        },
+        y: {
+          stacked: true
         }
       }
     },
