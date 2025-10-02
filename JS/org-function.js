@@ -266,7 +266,7 @@ function orgCreateStackedChart(ctx, data, mode, valueType) {
   });
 }
 
-// ========== Geo Workforce (Stacked Horizontal Bar) ==========
+// ========== Geo Workforce (Stacked Horizontal Bar + Data Labels) ==========
 function orgCreateGeoWorkforceChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
 
@@ -298,13 +298,14 @@ function orgCreateGeoWorkforceChart(ctx, data, mode, valueType) {
       maintainAspectRatio: false,
       plugins: {
         legend: { position: "bottom" },
-        tooltip: {
-          callbacks: {
-            label: function (context) {
-              return valueType === "percent"
-                ? `${context.dataset.label}: ${context.parsed.x}%`
-                : `${context.dataset.label}: ${context.parsed.x}`;
-            }
+        datalabels: {
+          anchor: "center",
+          align: "center",
+          color: "#fff",
+          font: { size: 9, weight: "bold" },
+          formatter: function(value) {
+            if (value === 0) return "";
+            return valueType === "percent" ? value + "%" : value;
           }
         }
       },
@@ -318,6 +319,7 @@ function orgCreateGeoWorkforceChart(ctx, data, mode, valueType) {
         },
         y: { stacked: true }
       }
-    }
+    },
+    plugins: [ChartDataLabels]
   });
 }
