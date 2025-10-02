@@ -15,6 +15,30 @@ function chartToPercent(arr) {
   return arr.map(v => total > 0 ? +(v / total * 100).toFixed(1) : 0);
 }
 
+// Tính consolidatedCompetitors từ data.competitors
+function computeConsolidated(data) {
+  const periods = data.periods;
+  const competitors = data.competitors;
+  const avg = {};
+
+  periods.forEach(p => {
+    let sum = 0, count = 0;
+    competitors.forEach(c => {
+      if (c.values[p] !== undefined) {
+        sum += c.values[p];
+        count++;
+      }
+    });
+    avg[p] = count > 0 ? +(sum / count).toFixed(1) : 0;
+  });
+
+  return {
+    name: "Average Competitors",
+    color: "#aaaaaa",
+    values: avg
+  };
+}
+
 // ========== Web Init ==========
 function webInitChart(wrapper, dataUrl) {
   const canvas = wrapper.querySelector("canvas");
@@ -23,6 +47,9 @@ function webInitChart(wrapper, dataUrl) {
   fetch(dataUrl)
     .then(res => res.json())
     .then(data => {
+      // tự động thêm consolidatedCompetitors
+      data.consolidatedCompetitors = computeConsolidated(data);
+
       let currentMode = "direct";     // direct | consolidate
       let currentValue = "absolute";  // absolute | percent
 
@@ -138,7 +165,11 @@ function webCreateMirrorBarChart(ctx, data, mode, valueType) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: "top" },
+        legend: {
+          position: "top",
+          align: "center", // căn giữa legend
+          labels: { boxWidth: 20, padding: 15 }
+        },
         datalabels: {
           anchor: "center",
           align: "center",
