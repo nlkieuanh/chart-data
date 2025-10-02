@@ -1,187 +1,181 @@
 // Common Chart Functions for Webflow
-// All functions use proper prefixes for clarity
+// Utility prefix: chart
+// Org-specific prefix: org
 
-// Chart utility functions (prefix: chart)
+// ========== Utility Functions ==========
 function chartHexToRgba(hex, alpha) {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// Org page specific functions (prefix: org)
-function orgProcessHeadcountDirect(data) {
-    const datasets = [];
+// ========== Org Page Functions ==========
+function orgInitChart(wrapper, dataUrl) {
+  const canvas = wrapper.querySelector("canvas");
+  const ctx = canvas.getContext("2d");
 
-    // Your company (always first, solid line)
-    datasets.push({
-        label: data.yourCompany.name,
-        data: data.yourCompany.headcount,
-        borderColor: data.yourCompany.color,
-        backgroundColor: chartHexToRgba(data.yourCompany.color, 0.2),
-        borderWidth: 3,
-        fill: false,
-        pointRadius: 4
-    });
+  fetch(dataUrl)
+    .then(res => res.json())
+    .then(data => {
+      const isHeadcount = !!data.yourCompany.headcount;
+      const isPerformance = !!data.yourCompany.performance;
 
-    // Competitors (dashed lines)
-    data.competitors.forEach(competitor => {
-        datasets.push({
-            label: competitor.name,
-            data: competitor.headcount,
-            borderColor: competitor.color,
-            backgroundColor: chartHexToRgba(competitor.color, 0.15),
-            borderWidth: 2,
-            fill: false,
-            borderDash: [3, 3],
-            pointRadius: 3
-        });
-    });
-
-    return {
-        labels: data.periods,
-        datasets: datasets
-    };
+      if (isHeadcount) {
+        orgCreateHeadcountChart(ctx, data, "direct");
+        orgAttachSwitch(wrapper, ctx, data, orgCreateHeadcountChart);
+      } else if (isPerformance) {
+        orgCreatePerformanceChart(ctx, data, "direct");
+        orgAttachSwitch(wrapper, ctx, data, orgCreatePerformanceChart);
+      }
+    })
+    .catch(err => console.error("Error loading chart data:", err));
 }
 
-function orgProcessHeadcountConsolidated(data) {
-    const datasets = [];
+function orgAttachSwitch(wrapper, ctx, data, chartFn) {
+  const btnDirect = wrapper.querySelector(".btn-direct");
+  const btnConsolidate = wrapper.querySelector(".btn-consolidate");
+  const allBtns = [btnDirect, btnConsolidate];
 
-    // Your company
-    datasets.push({
-        label: data.yourCompany.name,
-        data: data.yourCompany.headcount,
-        borderColor: data.yourCompany.color,
-        backgroundColor: chartHexToRgba(data.yourCompany.color, 0.2),
-        borderWidth: 3,
-        fill: false,
-        pointRadius: 4
+  function setActive(activeBtn) {
+    allBtns.forEach(btn => {
+      if (btn) btn.classList.remove("is-active");
     });
+    if (activeBtn) activeBtn.classList.add("is-active");
+  }
 
-    // All competitors combined
-    datasets.push({
-        label: data.consolidatedCompetitors.name,
-        data: data.consolidatedCompetitors.headcount,
-        borderColor: data.consolidatedCompetitors.color,
-        backgroundColor: chartHexToRgba(data.consolidatedCompetitors.color, 0.15),
-        borderWidth: 3,
-        fill: false,
-        borderDash: [5, 5],
-        pointRadius: 4
-    });
-
-    return {
-        labels: data.periods,
-        datasets: datasets
-    };
-}
-
-function orgCreateHeadcountChart(canvasId, jsonData, mode = 'direct') {
-    const ctx = document.getElementById(canvasId).getContext('2d');
-
-    // Destroy existing chart if it exists
-    if (window[canvasId + 'Chart']) {
-        window[canvasId + 'Chart'].destroy();
-    }
-
-    let chartData;
-    if (mode === 'direct') {
-        chartData = orgProcessHeadcountDirect(jsonData);
-    } else {
-        chartData = orgProcessHeadcountConsolidated(jsonData);
-    }
-
-    const config = {
-        type: 'line',
-        data: chartData,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-                mode: 'index',
-                intersect: false
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Headcount'
-                    },
-                    ticks: {
-                        callback: function (value) {
-                            return value >= 1000 ? (value / 1000) + 'k' : value;
-                        }
-                    }
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Month'
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    position: 'top',
-                    labels: {
-                        padding: 20,
-                        usePointStyle: true
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function (context) {
-                            return context.dataset.label + ': ' + context.parsed.y.toLocaleString();
-                        }
-                    }
-                }
-            }
-        }
-    };
-
-    // Store chart instance globally for easy access
-    window[canvasId + 'Chart'] = new Chart(ctx, config);
-}
-
-function initHeadcountChart(wrapper, dataUrl) {
-  const canvas = wrapper.querySelector('canvas');
-  if (!canvas) return;
-
-  const chartId = canvas.id;
-  const btnDirect = wrapper.querySelector('.btn-direct');
-  const btnConsolidate = wrapper.querySelector('.btn-consolidate');
-
-  // Load mặc định Direct
-  orgLoadAndCreateHeadcountChart(chartId, dataUrl, 'direct');
-  if (btnDirect) btnDirect.classList.add("is-active");
-
-  // Switch Direct
   if (btnDirect) {
-    btnDirect.addEventListener('click', function() {
-      orgLoadAndCreateHeadcountChart(chartId, dataUrl, 'direct');
-      btnDirect.classList.add("is-active");
-      if (btnConsolidate) btnConsolidate.classList.remove("is-active");
+    btnDirect.addEventListener("click", () => {
+      chartFn(ctx, data, "direct");
+      setActive(btnDirect);
     });
   }
 
-  // Switch Consolidated
   if (btnConsolidate) {
-    btnConsolidate.addEventListener('click', function() {
-      orgLoadAndCreateHeadcountChart(chartId, dataUrl, 'consolidated');
-      btnConsolidate.classList.add("is-active");
-      if (btnDirect) btnDirect.classList.remove("is-active");
+    btnConsolidate.addEventListener("click", () => {
+      chartFn(ctx, data, "consolidate");
+      setActive(btnConsolidate);
     });
   }
+
+  // Mặc định chọn Direct
+  setActive(btnDirect);
 }
 
+// ========== Headcount (Line Chart) ==========
+function orgCreateHeadcountChart(ctx, data, mode) {
+  if (window[ctx.canvas.id + "Chart"]) {
+    window[ctx.canvas.id + "Chart"].destroy();
+  }
 
-async function orgLoadAndCreateHeadcountChart(canvasId, jsonUrl, mode = 'direct') {
-    try {
-        const response = await fetch(jsonUrl);
-        const data = await response.json();
-        orgCreateHeadcountChart(canvasId, data, mode);
-    } catch (error) {
-        console.error('Error loading org headcount chart ', error);
+  let datasets = [];
+
+  if (mode === "direct") {
+    datasets.push({
+      label: data.yourCompany.name,
+      data: data.yourCompany.headcount,
+      borderColor: data.yourCompany.color,
+      backgroundColor: chartHexToRgba(data.yourCompany.color, 0.5),
+      tension: 0.3
+    });
+
+    data.competitors.forEach(c => {
+      datasets.push({
+        label: c.name,
+        data: c.headcount,
+        borderColor: c.color,
+        backgroundColor: chartHexToRgba(c.color, 0.5),
+        borderDash: [4, 2],
+        tension: 0.3
+      });
+    });
+  } else {
+    datasets.push({
+      label: data.yourCompany.name,
+      data: data.yourCompany.headcount,
+      borderColor: data.yourCompany.color,
+      backgroundColor: chartHexToRgba(data.yourCompany.color, 0.5),
+      tension: 0.3
+    });
+
+    datasets.push({
+      label: data.consolidatedCompetitors.name,
+      data: data.consolidatedCompetitors.headcount,
+      borderColor: data.consolidatedCompetitors.color,
+      backgroundColor: chartHexToRgba(data.consolidatedCompetitors.color, 0.5),
+      borderDash: [6, 3],
+      tension: 0.3
+    });
+  }
+
+  window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: data.periods,
+      datasets: datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "bottom" }
+      }
     }
+  });
+}
+
+// ========== Performance (Group Bar Chart) ==========
+function orgCreatePerformanceChart(ctx, data, mode) {
+  if (window[ctx.canvas.id + "Chart"]) {
+    window[ctx.canvas.id + "Chart"].destroy();
+  }
+
+  let datasets = [];
+
+  if (mode === "direct") {
+    datasets.push({
+      label: data.yourCompany.name,
+      data: data.yourCompany.performance,
+      backgroundColor: data.yourCompany.color
+    });
+
+    data.competitors.forEach(c => {
+      datasets.push({
+        label: c.name,
+        data: c.performance,
+        backgroundColor: c.color
+      });
+    });
+  } else {
+    datasets.push({
+      label: data.yourCompany.name,
+      data: data.yourCompany.performance,
+      backgroundColor: data.yourCompany.color
+    });
+
+    datasets.push({
+      label: data.consolidatedCompetitors.name,
+      data: data.consolidatedCompetitors.performance,
+      backgroundColor: data.consolidatedCompetitors.color
+    });
+  }
+
+  window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: data.periods,
+      datasets: datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "bottom" }
+      },
+      scales: {
+        x: { stacked: false },
+        y: { beginAtZero: true }
+      }
+    }
+  });
 }
