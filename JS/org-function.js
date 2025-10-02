@@ -15,6 +15,26 @@ function chartToPercent(arr) {
   return arr.map(v => total > 0 ? +(v / total * 100).toFixed(1) : 0);
 }
 
+// Chuẩn hoá values object -> array khớp periods
+function mapValuesToArray(valuesObj, fullPeriods) {
+  return fullPeriods.map(region => valuesObj[region] || 0);
+}
+
+// Lấy union tất cả periods từ yourCompany + competitors + consolidated
+function getFullPeriods(data) {
+  const set = new Set(data.periods || []);
+  if (data.yourCompany?.values) Object.keys(data.yourCompany.values).forEach(k => set.add(k));
+  if (data.competitors) {
+    data.competitors.forEach(c => {
+      if (c.values) Object.keys(c.values).forEach(k => set.add(k));
+    });
+  }
+  if (data.consolidatedCompetitors?.values) {
+    Object.keys(data.consolidatedCompetitors.values).forEach(k => set.add(k));
+  }
+  return Array.from(set);
+}
+
 // ========== Org Init ==========
 function orgInitChart(wrapper, dataUrl) {
   const canvas = wrapper.querySelector("canvas");
@@ -24,9 +44,10 @@ function orgInitChart(wrapper, dataUrl) {
     .then(res => res.json())
     .then(data => {
       const periodsCount = data.periods.length;
-      const isLine = periodsCount >= 10;              
-      const isStacked = periodsCount > 6 && periodsCount < 10; 
-      const isGrouped = !isLine && !isStacked;        
+      const isLine = periodsCount >= 10 && !data.yourCompany.values?.US; 
+      const isStacked = periodsCount > 6 && periodsCount < 10 && Array.isArray(data.yourCompany.values);
+      const isGrouped = Array.isArray(data.yourCompany.values) && periodsCount <= 6;
+      const isGeo = !Array.isArray(data.yourCompany.values); // values dạng object -> Geo Workforce
 
       let currentMode = "direct";     // direct | consolidate
       let currentValue = "absolute";  // absolute | percent
@@ -35,6 +56,7 @@ function orgInitChart(wrapper, dataUrl) {
         if (isLine) orgCreateLineChart(ctx, data, currentMode, currentValue);
         if (isGrouped) orgCreateGroupedChart(ctx, data, currentMode, currentValue);
         if (isStacked) orgCreateStackedChart(ctx, data, currentMode, currentValue);
+        if (isGeo) orgCreateGeoWorkforceChart(ctx, data, currentMode, currentValue);
       }
 
       // buttons
@@ -210,6 +232,62 @@ function orgCreateStackedChart(ctx, data, mode, valueType) {
 
     const colors = ["#3366cc", "#dc3912", "#ff9900", "#109618", "#990099", "#0099c6", "#dd4477"];
     return { label: dept, data: deptValues, backgroundColor: colors[i % colors.length] };
+  });
+
+  window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
+    type: "bar",
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "bottom" },
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              return valueType === "percent"
+                ? `${context.dataset.label}: ${context.parsed.x}%`
+                : `${context.dataset.label}: ${context.parsed.x}`;
+            }
+          }
+        }
+      },
+      indexAxis: "y",
+      scales: {
+        x: {
+          stacked: true,
+          beginAtZero: true,
+          max: valueType === "percent" ? 100 : undefined,
+          ticks: { callback: val => valueType === "percent" ? val + "%" : val }
+        },
+        y: { stacked: true }
+      }
+    }
+  });
+}
+
+// ========== Geo Workforce (Stacked Horizontal Bar) ==========
+function orgCreateGeoWorkforceChart(ctx, data, mode, valueType) {
+  if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
+
+  const fullPeriods = getFullPeriods(data);
+
+  function getValues(obj) {
+    const arr = mapValuesToArray(obj, fullPeriods);
+    return valueType === "percent" ? chartToPercent(arr) : arr;
+  }
+
+  const labels = mode === "direct"
+    ? [data.yourCompany.name, ...data.competitors.map(c => c.name)]
+    : [data.yourCompany.name, data.consolidatedCompetitors.name];
+
+  const datasets = fullPeriods.map((region, i) => {
+    let regionValues = mode === "direct"
+      ? [getValues(data.yourCompany.values)[i], ...data.competitors.map(c => getValues(c.values)[i])]
+      : [getValues(data.yourCompany.values)[i], getValues(data.consolidatedCompetitors.values)[i]];
+
+    const colors = ["#3366cc", "#dc3912", "#ff9900", "#109618", "#990099", "#0099c6", "#dd4477", "#66ccff", "#ff66cc"];
+    return { label: region, data: regionValues, backgroundColor: colors[i % colors.length] };
   });
 
   window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
