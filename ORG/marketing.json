@@ -1,0 +1,44 @@
+{
+  "periods": [
+    "Brand Marketing",
+    "Product Marketing",
+    "Digital Marketing"
+  ],
+  "yourCompany": {
+    "name": "Your Company",
+    "color": "#3366cc",
+    "performance": [25, 18, 32]
+  },
+  "competitors": [
+    {
+      "name": "Competitor A",
+      "color": "#dc3912",
+      "performance": [20, 22, 28]
+    },
+    {
+      "name": "Competitor B",
+      "color": "#ff9900",
+      "performance": [18, 16, 25]
+    },
+    {
+      "name": "Competitor C",
+      "color": "#109618",
+      "performance": [22, 20, 30]
+    },
+    {
+      "name": "Competitor D",
+      "color": "#990099",
+      "performance": [26, 19, 29]
+    },
+    {
+      "name": "Competitor E",
+      "color": "#dd4477",
+      "performance": [19, 17, 24]
+    }
+  ],
+  "consolidatedCompetitors": {
+    "name": "Average Competitors",
+    "color": "#0099c6",
+    "performance": [21, 18.8, 27.2]
+  }
+}
