@@ -10,249 +10,184 @@ function chartHexToRgba(hex, alpha) {
 }
 
 // ==============================
-// HEADCOUNT LINE CHART FUNCTIONS
+// HEADCOUNT LINE CHART
 // ==============================
 
 function orgProcessHeadcountDirect(data) {
     const datasets = [];
-
-    // Your company (always first, solid line)
     datasets.push({
         label: data.yourCompany.name,
-        data: data.yourCompany.headcount,
+         data.yourCompany.headcount,
         borderColor: data.yourCompany.color,
         backgroundColor: chartHexToRgba(data.yourCompany.color, 0.2),
         borderWidth: 3,
         fill: false,
         pointRadius: 4
     });
-
-    // Competitors (dashed lines)
-    data.competitors.forEach(competitor => {
+    data.competitors.forEach(comp => {
         datasets.push({
-            label: competitor.name,
-            data: competitor.headcount,
-            borderColor: competitor.color,
-            backgroundColor: chartHexToRgba(competitor.color, 0.15),
+            label: comp.name,
+             comp.headcount,
+            borderColor: comp.color,
+            backgroundColor: chartHexToRgba(comp.color, 0.15),
             borderWidth: 2,
             fill: false,
             borderDash: [3, 3],
             pointRadius: 3
         });
     });
-
-    return {
-        labels: data.periods,
-        datasets: datasets
-    };
+    return { labels: data.periods, datasets };
 }
 
 function orgProcessHeadcountConsolidated(data) {
-    const datasets = [];
-
-    // Your company
-    datasets.push({
-        label: data.yourCompany.name,
-        data: data.yourCompany.headcount,
-        borderColor: data.yourCompany.color,
-        backgroundColor: chartHexToRgba(data.yourCompany.color, 0.2),
-        borderWidth: 3,
-        fill: false,
-        pointRadius: 4
-    });
-
-    // All competitors combined
-    datasets.push({
-        label: data.consolidatedCompetitors.name,
-        data: data.consolidatedCompetitors.headcount,
-        borderColor: data.consolidatedCompetitors.color,
-        backgroundColor: chartHexToRgba(data.consolidatedCompetitors.color, 0.15),
-        borderWidth: 3,
-        fill: false,
-        borderDash: [5, 5],
-        pointRadius: 4
-    });
-
     return {
         labels: data.periods,
-        datasets: datasets
+        datasets: [
+            {
+                label: data.yourCompany.name,
+                 data.yourCompany.headcount,
+                borderColor: data.yourCompany.color,
+                backgroundColor: chartHexToRgba(data.yourCompany.color, 0.2),
+                borderWidth: 3,
+                fill: false,
+                pointRadius: 4
+            },
+            {
+                label: data.consolidatedCompetitors.name,
+                 data.consolidatedCompetitors.headcount,
+                borderColor: data.consolidatedCompetitors.color,
+                backgroundColor: chartHexToRgba(data.consolidatedCompetitors.color, 0.15),
+                borderWidth: 3,
+                fill: false,
+                borderDash: [5, 5],
+                pointRadius: 4
+            }
+        ]
     };
 }
 
-function orgCreateHeadcountChart(canvasId, jsonData, mode = 'direct') {
+function orgCreateHeadcountChart(canvasId, data, mode = 'direct') {
     const ctx = document.getElementById(canvasId).getContext('2d');
+    if (window[canvasId + 'Chart']) window[canvasId + 'Chart'].destroy();
 
-    // Destroy existing chart if it exists
-    if (window[canvasId + 'Chart']) {
-        window[canvasId + 'Chart'].destroy();
-    }
-
-    let chartData;
-    if (mode === 'direct') {
-        chartData = orgProcessHeadcountDirect(jsonData);
-    } else {
-        chartData = orgProcessHeadcountConsolidated(jsonData);
-    }
+    const chartData = mode === 'direct' 
+        ? orgProcessHeadcountDirect(data) 
+        : orgProcessHeadcountConsolidated(data);
 
     const config = {
         type: 'line',
-        data: chartData,
+         chartData,
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            interaction: {
-                mode: 'index',
-                intersect: false
-            },
+            interaction: { mode: 'index', intersect: false },
             scales: {
                 y: {
                     beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Headcount'
-                    },
+                    title: { display: true, text: 'Headcount' },
                     ticks: {
-                        callback: function (value) {
-                            return value >= 1000 ? (value / 1000) + 'k' : value;
-                        }
+                        callback: v => v >= 1000 ? (v / 1000) + 'k' : v
                     }
                 },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Month'
-                    }
-                }
+                x: { title: { display: true, text: 'Month' } }
             },
             plugins: {
-                legend: {
-                    position: 'top',
-                    labels: {
-                        padding: 20,
-                        usePointStyle: true
-                    }
-                },
+                legend: { position: 'top', labels: { padding: 20, usePointStyle: true } },
                 tooltip: {
                     callbacks: {
-                        label: function (context) {
-                            return context.dataset.label + ': ' + context.parsed.y.toLocaleString();
-                        }
+                        label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString()
                     }
                 }
             }
         }
     };
 
-    // Store chart instance globally for easy access
     window[canvasId + 'Chart'] = new Chart(ctx, config);
 }
 
 // ==============================
-// PERFORMANCE BAR CHART FUNCTIONS
+// PERFORMANCE GROUPED BAR CHART
 // ==============================
 
 function orgProcessPerformanceDirect(data) {
-    const labels = [data.yourCompany.name, ...data.competitors.map(c => c.name)];
-    const values = [data.yourCompany.value, ...data.competitors.map(c => c.value)];
-    const colors = [data.yourCompany.color, ...data.competitors.map(c => c.color)];
-    const backgroundColors = colors.map((color, i) => 
-        chartHexToRgba(color, i === 0 ? 0.7 : 0.5)
-    );
-
-    return {
-        labels: labels,
-        datasets: [{
-            label: data.metric,
-            data: values,
-            backgroundColor: backgroundColors,
-            borderColor: colors,
+    const datasets = [];
+    datasets.push({
+        label: data.yourCompany.name,
+         data.yourCompany.performance,
+        backgroundColor: chartHexToRgba(data.yourCompany.color, 0.7),
+        borderColor: data.yourCompany.color,
+        borderWidth: 1,
+        borderRadius: 4,
+        borderSkipped: false
+    });
+    data.competitors.forEach(comp => {
+        datasets.push({
+            label: comp.name,
+             comp.performance,
+            backgroundColor: chartHexToRgba(comp.color, 0.6),
+            borderColor: comp.color,
             borderWidth: 1,
             borderRadius: 4,
             borderSkipped: false
-        }]
-    };
+        });
+    });
+    return { labels: data.periods, datasets };
 }
 
 function orgProcessPerformanceConsolidated(data) {
-    const labels = [data.yourCompany.name, data.consolidatedCompetitors.name];
-    const values = [data.yourCompany.value, data.consolidatedCompetitors.value];
-    const colors = [data.yourCompany.color, data.consolidatedCompetitors.color];
-    const backgroundColors = [
-        chartHexToRgba(data.yourCompany.color, 0.7),
-        chartHexToRgba(data.consolidatedCompetitors.color, 0.5)
-    ];
-
     return {
-        labels: labels,
-        datasets: [{
-            label: data.metric,
-            data: values,
-            backgroundColor: backgroundColors,
-            borderColor: colors,
-            borderWidth: 1,
-            borderRadius: 4,
-            borderSkipped: false
-        }]
+        labels: data.periods,
+        datasets: [
+            {
+                label: data.yourCompany.name,
+                 data.yourCompany.performance,
+                backgroundColor: chartHexToRgba(data.yourCompany.color, 0.7),
+                borderColor: data.yourCompany.color,
+                borderWidth: 1,
+                borderRadius: 4,
+                borderSkipped: false
+            },
+            {
+                label: data.consolidatedCompetitors.name,
+                 data.consolidatedCompetitors.performance,
+                backgroundColor: chartHexToRgba(data.consolidatedCompetitors.color, 0.6),
+                borderColor: data.consolidatedCompetitors.color,
+                borderWidth: 1,
+                borderRadius: 4,
+                borderSkipped: false
+            }
+        ]
     };
 }
 
-function orgCreatePerformanceBarChart(canvasId, jsonData, mode = 'direct') {
+function orgCreatePerformanceBarChart(canvasId, data, mode = 'direct') {
     const ctx = document.getElementById(canvasId).getContext('2d');
+    if (window[canvasId + 'Chart']) window[canvasId + 'Chart'].destroy();
 
-    // Destroy existing chart
-    if (window[canvasId + 'Chart']) {
-        window[canvasId + 'Chart'].destroy();
-    }
-
-    let chartData;
-    if (mode === 'direct') {
-        chartData = orgProcessPerformanceDirect(jsonData);
-    } else {
-        chartData = orgProcessPerformanceConsolidated(jsonData);
-    }
+    const chartData = mode === 'direct'
+        ? orgProcessPerformanceDirect(data)
+        : orgProcessPerformanceConsolidated(data);
 
     const config = {
         type: 'bar',
-        data: chartData,
+         chartData,
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            indexAxis: 'x',
             scales: {
                 y: {
                     beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: jsonData.metric || 'Performance'
-                    },
-                    ticks: {
-                        callback: function(value) {
-                            if (value >= 1000000) return (value / 1000000) + 'M';
-                            if (value >= 1000) return (value / 1000) + 'k';
-                            return value;
-                        }
-                    }
+                    title: { display: true, text: 'Performance Score' }
                 },
                 x: {
-                    title: {
-                        display: true,
-                        text: 'Company'
-                    }
+                    title: { display: true, text: 'Marketing Channel' }
                 }
             },
             plugins: {
-                legend: {
-                    display: false
-                },
+                legend: { position: 'top', labels: { padding: 15, usePointStyle: true } },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
-                            const label = context.dataset.label || '';
-                            const value = context.parsed.y;
-                            if (value >= 1000000) return `${label}: ${(value / 1000000).toFixed(2)}M`;
-                            if (value >= 1000) return `${label}: ${(value / 1000).toFixed(1)}k`;
-                            return `${label}: ${value.toLocaleString()}`;
-                        }
+                        label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}`
                     }
                 }
             }
@@ -266,77 +201,67 @@ function orgCreatePerformanceBarChart(canvasId, jsonData, mode = 'direct') {
 // AUTO INIT CHART FUNCTION (UNIFIED)
 // ==============================
 
-function initChartAuto(canvasId, dataUrl, chartType = 'auto') {
+async function initChartAuto(canvasId, dataUrl) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
 
     const wrapper = canvas.closest('.chart-canvas');
     if (!wrapper) return;
 
-    // Auto-detect chart type based on canvasId
-    let detectedType = chartType;
-    if (chartType === 'auto') {
-        const id = canvasId.toLowerCase();
-        if (id.includes('headcount')) {
-            detectedType = 'headcount';
-        } else if (id.includes('performance') || id.includes('perf')) {
-            detectedType = 'performance';
-        }
+    // Auto-detect chart type
+    const id = canvasId.toLowerCase();
+    const isHeadcount = id.includes('headcount');
+    const isPerformance = id.includes('performance') || id.includes('perf');
+
+    if (!isHeadcount && !isPerformance) {
+        console.warn(`Unknown chart type for canvas ID: ${canvasId}`);
+        return;
     }
 
-    // Load JSON and initialize chart
-    fetch(dataUrl.trim())
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
-            if (detectedType === 'headcount') {
-                // Initialize with 'direct' mode
-                orgCreateHeadcountChart(canvasId, data, 'direct');
-                const btnDirect = wrapper.querySelector('.btn-direct');
-                const btnConsolidate = wrapper.querySelector('.btn-consolidate');
+    try {
+        const res = await fetch(dataUrl.trim());
+        const data = await res.json();
 
-                if (btnDirect) {
-                    btnDirect.addEventListener('click', () => {
-                        orgCreateHeadcountChart(canvasId, data, 'direct');
-                        btnDirect.classList.add('is-active');
-                        if (btnConsolidate) btnConsolidate.classList.remove('is-active');
-                    });
+        // Initialize with 'direct' mode
+        if (isHeadcount) {
+            orgCreateHeadcountChart(canvasId, data, 'direct');
+        } else if (isPerformance) {
+            orgCreatePerformanceBarChart(canvasId, data, 'direct');
+        }
+
+        // Attach button events
+        const btnDirect = wrapper.querySelector('.btn-direct');
+        const btnConsolidate = wrapper.querySelector('.btn-consolidate');
+
+        if (btnDirect) {
+            btnDirect.addEventListener('click', () => {
+                if (isHeadcount) {
+                    orgCreateHeadcountChart(canvasId, data, 'direct');
+                } else if (isPerformance) {
+                    orgCreatePerformanceBarChart(canvasId, data, 'direct');
                 }
+                btnDirect.classList.add('is-active');
+                if (btnConsolidate) btnConsolidate.classList.remove('is-active');
+            });
+        }
 
-                if (btnConsolidate) {
-                    btnConsolidate.addEventListener('click', () => {
-                        orgCreateHeadcountChart(canvasId, data, 'consolidated');
-                        btnConsolidate.classList.add('is-active');
-                        if (btnDirect) btnDirect.classList.remove('is-active');
-                    });
+        if (btnConsolidate) {
+            btnConsolidate.addEventListener('click', () => {
+                if (isHeadcount) {
+                    orgCreateHeadcountChart(canvasId, data, 'consolidated');
+                } else if (isPerformance) {
+                    orgCreatePerformanceBarChart(canvasId, data, 'consolidated');
                 }
+                btnConsolidate.classList.add('is-active');
+                if (btnDirect) btnDirect.classList.remove('is-active');
+            });
+        }
 
-            } else if (detectedType === 'performance') {
-                // Initialize with 'direct' mode
-                orgCreatePerformanceBarChart(canvasId, data, 'direct');
-                const btnDirect = wrapper.querySelector('.btn-direct');
-                const btnConsolidate = wrapper.querySelector('.btn-consolidate');
+        // Set initial active state
+        if (btnDirect) btnDirect.classList.add('is-active');
+        if (btnConsolidate) btnConsolidate.classList.remove('is-active');
 
-                if (btnDirect) {
-                    btnDirect.addEventListener('click', () => {
-                        orgCreatePerformanceBarChart(canvasId, data, 'direct');
-                        btnDirect.classList.add('is-active');
-                        if (btnConsolidate) btnConsolidate.classList.remove('is-active');
-                    });
-                }
-
-                if (btnConsolidate) {
-                    btnConsolidate.addEventListener('click', () => {
-                        orgCreatePerformanceBarChart(canvasId, data, 'consolidated');
-                        btnConsolidate.classList.add('is-active');
-                        if (btnDirect) btnDirect.classList.remove('is-active');
-                    });
-                }
-            }
-        })
-        .catch(error => {
-            console.error(`Failed to load chart "${canvasId}" from "${dataUrl}":`, error);
-        });
+    } catch (error) {
+        console.error(`Failed to load chart "${canvasId}" from "${dataUrl}":`, error);
+    }
 }
