@@ -1,0 +1,48 @@
+{
+  "periods": [
+    "Engineering",
+    "Product",
+    "Sales",
+    "Marketing",
+    "Operations",
+    "Finance",
+    "HR"
+  ],
+  "yourCompany": {
+    "name": "Your Company",
+    "color": "#3366cc",
+    "values": [120, 30, 50, 40, 25, 15, 10]
+  },
+  "competitors": [
+    {
+      "name": "Probi",
+      "color": "#dc3912",
+      "values": [90, 55, 30, 60, 60, 22, 8]
+    },
+    {
+      "name": "Danone",
+      "color": "#ff9900",
+      "values": [40, 28, 65, 35, 32, 20, 12]
+    },
+    {
+      "name": "Yakult",
+      "color": "#109618",
+      "values": [30, 62, 78, 32, 27, 68, 15]
+    },
+    {
+      "name": "BioGaia",
+      "color": "#990099",
+      "values": [110, 47, 52, 88, 23, 84, 11]
+    },
+    {
+      "name": "Daiken Bio",
+      "color": "#dd4477",
+      "values": [55, 54, 58, 33, 89, 23, 9]
+    }
+  ],
+  "consolidatedCompetitors": {
+    "name": "Average Competitors",
+    "color": "#0099c6",
+    "values": [125, 45, 37, 62, 32, 10, 22]
+  }
+}
