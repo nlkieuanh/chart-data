@@ -1,0 +1,44 @@
+{
+  "periods": [
+    "Brand Marketing",
+    "Product Marketing",
+    "Digital Marketing"
+  ],
+  "yourCompany": {
+    "name": "Your Company",
+    "color": "#3366cc",
+    "performance": [25, 18, 32]
+  },
+  "competitors": [
+    {
+      "name": "Probi",
+      "color": "#dc3912",
+      "performance": [10, 12, 18]
+    },
+    {
+      "name": "Danone",
+      "color": "#ff9900",
+      "performance": [28, 16, 15]
+    },
+    {
+      "name": "Yakult",
+      "color": "#109618",
+      "performance": [12, 20, 20]
+    },
+    {
+      "name": "BioGaia",
+      "color": "#990099",
+      "performance": [16, 29, 19]
+    },
+    {
+      "name": "Daiken Bio",
+      "color": "#dd4477",
+      "performance": [19, 17, 24]
+    }
+  ],
+  "consolidatedCompetitors": {
+    "name": "Average Competitors",
+    "color": "#0099c6",
+    "performance": [18, 22, 21]
+  }
+}
