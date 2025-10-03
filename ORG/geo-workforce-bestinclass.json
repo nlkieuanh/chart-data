@@ -1,80 +1,65 @@
 {
-  "periods": ["US", "UK", "IN", "VN", "DE", "FR", "JP", "CA", "BR"],
+  "periods": ["United States", "United Kingdom", "India", "Vietnam", "Germany", "France", "Japan", "Canada", "Brazil"],
   "yourCompany": {
     "name": "Your Company",
     "color": "#3366cc",
     "values": {
-      "US": 500,
-      "IN": 300,
-      "VN": 200,
-      "JP": 100
+      "United States": 500,
+      "India": 300,
+      "Vietnam": 200,
+      "Japan": 100
     }
   },
   "competitors": [
     {
-      "name": "BioGaia",
+      "name": "Herbalife",
       "color": "#dc3912",
       "values": {
-        "UK": 600,
-        "VN": 150,
-        "IN": 200,
-        "CA": 50
+        "United States": 620,
+        "United Kingdom": 180,
+        "Canada": 90,
+        "Brazil": 70
       }
     },
     {
-      "name": "Proby",
+      "name": "Amway",
       "color": "#ff9900",
       "values": {
-        "VN": 400,
-        "BR": 100,
-        "FR": 120,
-        "IN": 250
+        "Germany": 120,
+        "France": 140,
+        "India": 280,
+        "United States": 410
       }
     },
     {
-      "name": "Yakult",
+      "name": "GNC",
       "color": "#109618",
       "values": {
-        "CA": 220,
-        "DE": 280,
-        "JP": 130,
-        "BR": 60
+        "Vietnam": 230,
+        "India": 260,
+        "Japan": 150,
+        "Brazil": 80
       }
     },
     {
-      "name": "Dr.Bio",
+      "name": "Nature's Bounty",
       "color": "#990099",
       "values": {
-        "US": 550,
-        "JP": 180,
-        "DE": 90,
-        "IN": 310
+        "United States": 540,
+        "United Kingdom": 160,
+        "Germany": 110,
+        "India": 290
       }
     },
     {
-      "name": "EcoBio",
-      "color": "#dd4477",
+      "name": "NOW Foods",
+      "color": "#0099c6",
       "values": {
-        "UK": 480,
-        "FR": 140,
-        "VN": 120,
-        "IN": 260
+        "France": 130,
+        "Japan": 140,
+        "United States": 490,
+        "Vietnam": 150
       }
     }
-  ],
-  "consolidatedCompetitors": {
-    "name": "Average Competitors",
-    "color": "#0099c6",
-    "values": {
-      "US": 206,
-      "UK": 166,
-      "IN": 260,
-      "VN": 144,
-      "DE": 33,
-      "FR": 63,
-      "JP": 80,
-      "CA": 110,
-      "BR": 112
-    }
-  }
+  ]
 }
