@@ -13,36 +13,37 @@ function chartHexToRgba(hex, alpha) {
 }
 
 function chartToPercent(arr) {
-  if (!Array.isArray(arr)) return [];   // ✅ tránh crash
+  if (!Array.isArray(arr)) return [];
   const total = arr.reduce((sum, v) => sum + v, 0);
   return arr.map(v => total > 0 ? +(v / total * 100).toFixed(1) : 0);
 }
 
-// Chuẩn hoá values object -> array khớp periods
 function mapValuesToArray(valuesObj, fullPeriods) {
   return fullPeriods.map(region => valuesObj[region] || 0);
 }
 
-// Lấy union tất cả periods từ yourCompany + competitors + consolidated
 function getFullPeriods(data) {
   const set = new Set(data.periods || []);
-  if (data.yourCompany?.values) Object.keys(data.yourCompany.values).forEach(k => set.add(k));
+  if (data.yourCompany?.values) {
+    if (Array.isArray(data.yourCompany.values)) {
+      (data.periods || []).forEach(p => set.add(p));
+    } else {
+      Object.keys(data.yourCompany.values).forEach(k => set.add(k));
+    }
+  }
   if (data.competitors) {
     data.competitors.forEach(c => {
-      if (c.values) Object.keys(c.values).forEach(k => set.add(k));
-      if (c.locations) Object.keys(c.locations).forEach(k => set.add(k));
+      if (Array.isArray(c.values)) {
+        (data.periods || []).forEach(p => set.add(p));
+      } else {
+        Object.keys(c.values).forEach(k => set.add(k));
+      }
     });
-  }
-  if (data.consolidatedCompetitors?.values) {
-    Object.keys(data.consolidatedCompetitors.values).forEach(k => set.add(k));
-  }
-  if (data.consolidatedCompetitors?.locations) {
-    Object.keys(data.consolidatedCompetitors.locations).forEach(k => set.add(k));
   }
   return Array.from(set);
 }
 
-// ========== Compute Consolidated (for array type charts) ==========
+// ========== Compute Consolidated ==========
 function orgComputeConsolidatedArray(data) {
   if (!data.competitors || !data.competitors.length) return null;
   const length = Array.isArray(data.competitors[0].values) ? data.competitors[0].values.length : 0;
@@ -59,6 +60,23 @@ function orgComputeConsolidatedArray(data) {
   };
 }
 
+function orgComputeConsolidatedGeo(data) {
+  if (!data.competitors || !data.competitors.length) return null;
+  const locationSet = new Set();
+  data.competitors.forEach(c => Object.keys(c.values || {}).forEach(l => locationSet.add(l)));
+
+  const avg = {};
+  Array.from(locationSet).forEach(loc => {
+    let sum = 0, count = 0;
+    data.competitors.forEach(c => {
+      if (c.values[loc] !== undefined) { sum += c.values[loc]; count++; }
+    });
+    avg[loc] = count > 0 ? +(sum / count).toFixed(1) : 0;
+  });
+
+  return { name: "Average Competitors", color: "#999999", values: avg };
+}
+
 // ========== Org Init ==========
 function orgInitChart(wrapper, dataUrl) {
   const rootCanvas = wrapper.querySelector("canvas");
@@ -68,10 +86,11 @@ function orgInitChart(wrapper, dataUrl) {
     .then(res => res.json())
     .then(data => {
       const periodsCount = data.periods ? data.periods.length : 0;
-      const isLine = periodsCount >= 10 && !data.yourCompany.values?.US; 
-      const isStacked = periodsCount > 6 && periodsCount < 10 && Array.isArray(data.yourCompany.values);
-      const isGrouped = Array.isArray(data.yourCompany.values) && periodsCount <= 6;
-      const isGeo = !Array.isArray(data.yourCompany.values);
+      const isArrayValues = Array.isArray(data.yourCompany.values);
+      const isLine = isArrayValues && periodsCount >= 10;
+      const isStacked = isArrayValues && periodsCount > 6 && periodsCount < 10;
+      const isGrouped = isArrayValues && periodsCount <= 6;
+      const isGeo = !isArrayValues;
 
       let currentMode = "direct";     
       let currentValue = "absolute";  
@@ -81,7 +100,6 @@ function orgInitChart(wrapper, dataUrl) {
         if (activeBtn) activeBtn.classList.add("is-active");
       }
 
-      // giữ grid riêng cho geo
       let geoGridEl = null;
 
       function renderChart() {
@@ -106,7 +124,7 @@ function orgInitChart(wrapper, dataUrl) {
         if (isGeo) {
           if (!geoGridEl) {
             geoGridEl = document.createElement("div");
-            geoGridEl.className = "chart-grid"; // ✅ dùng chung class với adv
+            geoGridEl.className = "chart-grid";
             rootCanvas.replaceWith(geoGridEl);
           }
           orgCreateGeoCompanyCharts(geoGridEl, data, currentMode, currentValue);
@@ -150,11 +168,7 @@ function orgInitChart(wrapper, dataUrl) {
 // ========== Line Chart ==========
 function orgCreateLineChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
-
-  function getValues(arr) {
-    if (!Array.isArray(arr)) return [];
-    return valueType === "percent" ? chartToPercent(arr) : arr;
-  }
+  const getValues = arr => Array.isArray(arr) ? (valueType === "percent" ? chartToPercent(arr) : arr) : [];
 
   let datasets = [];
   if (mode === "direct") {
@@ -203,9 +217,7 @@ function orgCreateLineChart(ctx, data, mode, valueType) {
       scales: {
         y: {
           beginAtZero: true,
-          ticks: {
-            callback: val => valueType === "percent" ? val + "%" : val
-          },
+          ticks: { callback: val => valueType === "percent" ? val + "%" : val },
           max: valueType === "percent" ? 100 : undefined
         }
       }
@@ -216,11 +228,7 @@ function orgCreateLineChart(ctx, data, mode, valueType) {
 // ========== Grouped Bar Chart ==========
 function orgCreateGroupedChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
-
-  function getValues(arr) {
-    if (!Array.isArray(arr)) return [];
-    return valueType === "percent" ? chartToPercent(arr) : arr;
-  }
+  const getValues = arr => Array.isArray(arr) ? (valueType === "percent" ? chartToPercent(arr) : arr) : [];
 
   let datasets = [];
   if (mode === "direct") {
@@ -254,11 +262,7 @@ function orgCreateGroupedChart(ctx, data, mode, valueType) {
 // ========== Stacked Bar Chart ==========
 function orgCreateStackedChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
-
-  function getValues(arr) {
-    if (!Array.isArray(arr)) return [];
-    return valueType === "percent" ? chartToPercent(arr) : arr;
-  }
+  const getValues = arr => Array.isArray(arr) ? (valueType === "percent" ? chartToPercent(arr) : arr) : [];
 
   const labels = mode === "direct"
     ? [data.yourCompany.name, ...data.competitors.map(c => c.name)]
@@ -268,7 +272,6 @@ function orgCreateStackedChart(ctx, data, mode, valueType) {
     let deptValues = mode === "direct"
       ? [getValues(data.yourCompany.values)[i], ...data.competitors.map(c => getValues(c.values)[i])]
       : [getValues(data.yourCompany.values)[i], getValues(data.consolidatedCompetitors?.values || [])[i]];
-
     const colors = ["#3366cc", "#dc3912", "#ff9900", "#109618", "#990099", "#0099c6", "#dd4477"];
     return { label: dept, data: deptValues, backgroundColor: colors[i % colors.length] };
   });
@@ -279,18 +282,7 @@ function orgCreateStackedChart(ctx, data, mode, valueType) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: { position: "bottom" },
-        tooltip: {
-          callbacks: {
-            label: function (context) {
-              return valueType === "percent"
-                ? `${context.dataset.label}: ${context.parsed.x}%`
-                : `${context.dataset.label}: ${context.parsed.x}`;
-            }
-          }
-        }
-      },
+      plugins: { legend: { position: "bottom" } },
       indexAxis: "y",
       scales: {
         x: {
@@ -306,28 +298,93 @@ function orgCreateStackedChart(ctx, data, mode, valueType) {
 }
 
 // ========== Geo Workforce (Per-Company Charts) ==========
-function orgComputeConsolidatedGeo(data) {
-  if (!data.competitors || !data.competitors.length) return null;
-  const locationSet = new Set();
-  data.competitors.forEach(c => Object.keys(c.values || {}).forEach(l => locationSet.add(l)));
-
-  const avg = {};
-  Array.from(locationSet).forEach(loc => {
-    let sum = 0, count = 0;
-    data.competitors.forEach(c => {
-      if (c.values[loc] !== undefined) { sum += c.values[loc]; count++; }
-    });
-    avg[loc] = count > 0 ? +(sum / count).toFixed(1) : 0;
-  });
-
-  return { name: "Average Competitors", color: "#999999", values: avg };
-}
-
 function orgCreateGeoCompanyCharts(grid, data, mode, valueType) {
   grid.replaceChildren();
-
   if (mode === "direct") {
     orgCreateGeoCompanyBlock(grid, data.yourCompany, valueType);
     data.competitors.forEach(c => orgCreateGeoCompanyBlock(grid, c, valueType));
   } else {
-    orgCreateGe
+    orgCreateGeoCompanyBlock(grid, data.yourCompany, valueType);
+    const avg = orgComputeConsolidatedGeo(data);
+    orgCreateGeoCompanyBlock(grid, avg, valueType);
+  }
+}
+
+function orgCreateGeoCompanyBlock(container, company, valueType) {
+  const block = document.createElement("div");
+  block.classList.add("company-chart");
+
+  const title = document.createElement("h4");
+  title.innerText = company.name;
+  block.appendChild(title);
+
+  const inner = document.createElement("div");
+  inner.classList.add("chart-inner");
+
+  const BAR_THICKNESS = 20;
+  const BAR_GAP = 20;
+  const locCount = Object.keys(company.values || {}).length;
+  const calcHeight = Math.max(locCount * (BAR_THICKNESS + BAR_GAP), 120);
+  inner.style.height = calcHeight + "px";
+
+  const canvas = document.createElement("canvas");
+  canvas.id = "geo-" + company.name.replace(/\s+/g, "-");
+  canvas.style.width = "100%";
+  canvas.style.height = "100%";
+  canvas.setAttribute("height", calcHeight);
+  inner.appendChild(canvas);
+  block.appendChild(inner);
+  container.appendChild(block);
+
+  orgRenderGeoChart(canvas, company, valueType, { BAR_THICKNESS });
+}
+
+function orgRenderGeoChart(canvas, company, valueType, opts) {
+  if (window[canvas.id + "Chart"]) window[canvas.id + "Chart"].destroy();
+  const labels = Object.keys(company.values || {});
+  const arr = labels.map(l => company.values[l] || 0);
+  const values = valueType === "percent" ? chartToPercent(arr) : arr;
+  const BAR_THICKNESS = (opts && opts.BAR_THICKNESS) || 20;
+
+  window[canvas.id + "Chart"] = new Chart(canvas.getContext("2d"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: company.name,
+        data: values,
+        backgroundColor: company.color,
+        barThickness: BAR_THICKNESS,
+        maxBarThickness: BAR_THICKNESS,
+        categoryPercentage: 1.0,
+        barPercentage: 0.9
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          anchor: "end",
+          align: "right",
+          clamp: true,
+          color: "#333",
+          font: { size: 12, weight: "bold" },
+          formatter: v => v === 0 ? "" : (valueType === "percent" ? v + "%" : v)
+        }
+      },
+      indexAxis: "y",
+      scales: {
+        y: { grid: { display: false }, ticks: { color: "#0f172a", font: { size: 12 } } },
+        x: {
+          beginAtZero: true,
+          grid: { display: false },
+          ticks: { display: false },
+          max: valueType === "percent" ? 100 : undefined
+        }
+      }
+    },
+    plugins: [ChartDataLabels]
+  });
+}
