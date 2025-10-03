@@ -219,6 +219,8 @@ function advRenderAnglesChart(canvas, company, valueType, opts) {
         datalabels: {
           anchor: "end",
           align: "right",
+          clamp: true,           // ✅ không cho text vượt ra ngoài chart area
+          clip: false,
           color: "#333",
           font: { size: 12, weight: "bold" },
           formatter: v => v === 0 ? "" : (valueType === "percent" ? v + "%" : v)
