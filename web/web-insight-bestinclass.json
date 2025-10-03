@@ -1,0 +1,56 @@
+{
+  "periods": [
+    "Desktop",
+    "Mobile"
+  ],
+  "yourCompany": {
+    "name": "Your Company",
+    "color": "#3366cc",
+    "values": {
+      "Desktop": 4,
+      "Mobile": 5
+    }
+  },
+  "competitors": [
+    {
+      "name": "Probi",
+      "color": "#dc3912",
+      "values": {
+        "Desktop": 4,
+        "Mobile": 4
+      }
+    },
+    {
+      "name": "BioGaia",
+      "color": "#ff9900",
+      "values": {
+        "Desktop": 3,
+        "Mobile": 4
+      }
+    },
+    {
+      "name": "Yakult",
+      "color": "#109618",
+      "values": {
+        "Desktop": 4,
+        "Mobile": 5
+      }
+    },
+    {
+      "name": "VitaBio",
+      "color": "#990099",
+      "values": {
+        "Desktop": 5,
+        "Mobile": 4
+      }
+    },
+    {
+      "name": "DRGram",
+      "color": "#0099c6",
+      "values": {
+        "Desktop": 4,
+        "Mobile": 4
+      }
+    }
+  ]
+}
