@@ -1,17 +1,35 @@
 {
+  "periods": ["Organic", "Paid", "Social", "Referral", "Other"],
   "yourCompany": {
-    "name": "Your Company","color": "#3366cc",
-    "channels": { "Organic": 5000, "Paid": 2000, "Social": 1500, "Referral": 800, "Other": 700 }
+    "name": "Your Company",
+    "color": "#3366cc",
+    "values": [5000, 2000, 1500, 800, 700]
   },
   "competitors": [
-    { "name": "Competitor A","color": "#dc3912","channels": { "Organic": 4200,"Paid": 1800,"Social": 1300,"Referral": 700,"Other": 600 } },
-    { "name": "Competitor B","color": "#ff9900","channels": { "Organic": 4600,"Paid": 1900,"Social": 1400,"Referral": 650,"Other": 550 } },
-    { "name": "Competitor C","color": "#109618","channels": { "Organic": 4000,"Paid": 1700,"Social": 1200,"Referral": 600,"Other": 500 } },
-    { "name": "Competitor D","color": "#990099","channels": { "Organic": 4300,"Paid": 1850,"Social": 1350,"Referral": 720,"Other": 580 } },
-    { "name": "Competitor E","color": "#0099c6","channels": { "Organic": 4100,"Paid": 1750,"Social": 1250,"Referral": 680,"Other": 520 } }
-  ],
-  "consolidatedCompetitors": {
-    "name": "Average Competitors","color": "#0099c6",
-    "channels": { "Organic": 4240,"Paid": 1800,"Social": 1300,"Referral": 670,"Other": 550 }
-  }
+    {
+      "name": "Competitor A",
+      "color": "#dc3912",
+      "values": [4200, 1800, 1300, 700, 600]
+    },
+    {
+      "name": "Competitor B",
+      "color": "#ff9900",
+      "values": [4600, 1900, 1400, 650, 550]
+    },
+    {
+      "name": "Competitor C",
+      "color": "#109618",
+      "values": [4000, 1700, 1200, 600, 500]
+    },
+    {
+      "name": "Competitor D",
+      "color": "#990099",
+      "values": [4300, 1850, 1350, 720, 580]
+    },
+    {
+      "name": "Competitor E",
+      "color": "#0099c6",
+      "values": [4100, 1750, 1250, 680, 520]
+    }
+  ]
 }
