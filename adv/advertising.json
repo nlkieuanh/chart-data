@@ -1,0 +1,89 @@
+{
+  "periods": [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+  ],
+  "yourCompany": {
+    "name": "Your Company",
+    "color": "#3366cc",
+    "overallTrend": [50, 60, 70, 85, 90, 120, 110, 130, 140, 150, 160, 170],
+    "formatBreakdown": {
+      "Video Ads": 120,
+      "Image Ads": 90,
+      "Only Text Ads": 50,
+      "Search Ads": 80,
+      "Social Ads": 100
+    },
+    "anglesOffers": {
+      "Free Trial": 50,
+      "Discount 20%": 40,
+      "Customer Stories": 30,
+      "Premium Upgrade": 20
+    },
+    "channels": {
+      "Facebook": 150,
+      "Google": 120,
+      "TikTok": 80,
+      "LinkedIn": 60
+    }
+  },
+  "competitors": [
+    {
+      "name": "Competitor A",
+      "color": "#dc3912",
+      "overallTrend": [40, 55, 65, 70, 85, 100, 95, 120, 125, 130, 140, 145],
+      "formatBreakdown": {
+        "Video Ads": 100,
+        "Image Ads": 60,
+        "Only Text Ads": 40,
+        "Search Ads": 60,
+        "Social Ads": 70
+      },
+      "anglesOffers": {
+        "Bundle Offer": 45,
+        "Limited Sale": 35,
+        "Referral": 25
+      },
+      "channels": {
+        "Facebook": 130,
+        "Google": 100,
+        "TikTok": 70,
+        "LinkedIn": 50
+      }
+    },
+    {
+      "name": "Competitor B",
+      "color": "#ff9900",
+      "overallTrend": [30, 40, 55, 65, 70, 80, 85, 90, 100, 110, 115, 120],
+      "formatBreakdown": {
+        "Video Ads": 80,
+        "Image Ads": 50,
+        "Only Text Ads": 20,
+        "Search Ads": 40,
+        "Social Ads": 60
+      },
+      "anglesOffers": {
+        "Discount 10%": 30,
+        "Early Access": 25,
+        "Exclusive Content": 20
+      },
+      "channels": {
+        "Facebook": 100,
+        "Google": 90,
+        "TikTok": 60,
+        "LinkedIn": 40
+      }
+    }
+    // Thêm Competitor C, D, E tương tự
+  ]
+}
