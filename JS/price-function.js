@@ -46,6 +46,27 @@ function priceComputeConsolidatedRadar(data) {
   };
 }
 
+// ========== NEW: Normalize Radar Metrics (scale to 0-100) ==========
+function priceNormalizeRadar(company) {
+  if (!company.radar) return company;
+  const raw = company.radar;
+  return {
+    ...company,
+    radar: {
+      // Delivery Time: giả định 2 ngày = tốt nhất (100), 7 ngày = tệ (0)
+      "Average Delivery Time": Math.max(0, Math.min(100, (7 - raw["Average Delivery Time"]) / 5 * 100)),
+      // On-time Delivery Rate: giữ nguyên %
+      "On-time Delivery Rate": Math.max(0, Math.min(100, raw["On-time Delivery Rate"])),
+      // Damage/Loss Rate: 0% = tốt nhất (100), 10% = tệ (0)
+      "Damage/Loss Rate": Math.max(0, Math.min(100, (10 - raw["Damage/Loss Rate"]) / 10 * 100)),
+      // Average Shipping Cost: giả định 2$ = tốt nhất, 8$ = tệ
+      "Average Shipping Cost": Math.max(0, Math.min(100, (8 - raw["Average Shipping Cost"]) / 6 * 100)),
+      // Customer Ratings: scale 1–5 sao thành %
+      "Customer Shipping Ratings": Math.max(0, Math.min(100, (raw["Customer Shipping Ratings"] / 5) * 100))
+    }
+  };
+}
+
 // ========== Init ==========
 function priceInitChart(wrapper, dataUrl) {
   const rootCanvas = wrapper.querySelector("canvas");
@@ -57,7 +78,6 @@ function priceInitChart(wrapper, dataUrl) {
       let currentMode = "direct";
       let currentValue = "absolute";
 
-      // Active state helper
       function setActive(group, activeBtn) {
         group.forEach(b => { if (b) b.classList.remove("is-active"); });
         if (activeBtn) activeBtn.classList.add("is-active");
@@ -65,7 +85,6 @@ function priceInitChart(wrapper, dataUrl) {
 
       // ===== SHIPPING SPECIAL =====
       if (type === "shipping") {
-        // Tạo container grid thay canvas gốc
         const grid = document.createElement("div");
         grid.className = "chart-grid";
         rootCanvas.replaceWith(grid);
@@ -73,7 +92,7 @@ function priceInitChart(wrapper, dataUrl) {
         function renderCharts() {
           grid.replaceChildren();
 
-          // Line chart (full width row)
+          // Line chart
           const lineWrap = document.createElement("div");
           lineWrap.classList.add("chart-line-full");
           const lineCanvas = document.createElement("canvas");
@@ -81,12 +100,11 @@ function priceInitChart(wrapper, dataUrl) {
           lineWrap.appendChild(lineCanvas);
           grid.appendChild(lineWrap);
 
-          // Vẽ line chart
           const ctx = lineCanvas.getContext("2d");
           data.consolidatedCompetitors = priceComputeConsolidated(data);
           priceCreateLineChart(ctx, data, currentMode, currentValue);
 
-          // Grid con cho radar charts
+          // Radar grid
           const radarGrid = document.createElement("div");
           radarGrid.className = "radar-grid";
           grid.appendChild(radarGrid);
@@ -101,7 +119,6 @@ function priceInitChart(wrapper, dataUrl) {
           }
         }
 
-        // Buttons
         const btnDirect = wrapper.closest(".chart-canvas").querySelector(".btn-direct");
         const btnConsolidate = wrapper.closest(".chart-canvas").querySelector(".btn-consolidate");
         const btnAbs = wrapper.closest(".chart-canvas").querySelector(".btn-absolute");
@@ -251,23 +268,25 @@ function priceCreateLineChart(ctx, data, mode, valueType) {
 
 // ========== Radar Chart Block ==========
 function priceCreateRadarBlock(container, company) {
+  const normalized = priceNormalizeRadar(company); // ✅ chuẩn hoá trước khi render
+
   const block = document.createElement("div");
   block.classList.add("company-chart");
 
   const title = document.createElement("h4");
-  title.innerText = company.name;
+  title.innerText = normalized.name;
   block.appendChild(title);
 
   const inner = document.createElement("div");
   inner.classList.add("chart-inner");
-  inner.style.height = "280px"; // đồng bộ chiều cao radar
+  inner.style.height = "280px";
   const canvas = document.createElement("canvas");
-  canvas.id = "radar-" + company.name.replace(/\s+/g, "-");
+  canvas.id = "radar-" + normalized.name.replace(/\s+/g, "-");
   inner.appendChild(canvas);
   block.appendChild(inner);
   container.appendChild(block);
 
-  priceRenderRadarChart(canvas, company);
+  priceRenderRadarChart(canvas, normalized);
 }
 
 // ========== Radar Chart ==========
@@ -293,7 +312,7 @@ function priceRenderRadarChart(canvas, company) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: { legend: { display: false } },
-      scales: { r: { beginAtZero: true } }
+      scales: { r: { beginAtZero: true, max: 100 } }
     }
   });
 }
