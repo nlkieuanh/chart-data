@@ -4,10 +4,10 @@
     "name": "Your Company",
     "color": "#3366cc",
     "anglesOffers": {
-      "VIP Membership": 30,
-      "Wellness Webinar": 25,
-      "Early Access": 20,
-      "Health Kit Bonus": 28
+      "Free Trial": 25,
+      "Discount 20%": 35,
+      "Customer Stories": 30,
+      "Premium Upgrade": 20
     }
   },
   "competitors": [
