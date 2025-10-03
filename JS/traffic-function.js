@@ -35,7 +35,8 @@ function trafficInitChart(wrapper, dataUrl) {
   fetch(dataUrl)
     .then(res => res.json())
     .then(data => {
-      const type = data.chartType;   // overview | sources | channels
+      const type = data.chartType;      // "line" | "bar"
+      const barMode = data.barMode || "grouped"; // default nếu chartType=bar
       let currentMode = "direct";
       let currentValue = "absolute";
 
@@ -49,9 +50,18 @@ function trafficInitChart(wrapper, dataUrl) {
 
       function renderChart() {
         const ctx = rootCanvas.getContext("2d");
-        if (type === "overview")  trafficCreateOverviewChart(ctx, data, currentMode, currentValue);
-        if (type === "sources")   trafficCreateSourcesChart(ctx, data, currentMode, currentValue);
-        if (type === "channels")  trafficCreateChannelsChart(ctx, data, currentMode, currentValue);
+
+        if (type === "line") {
+          trafficCreateLineChart(ctx, data, currentMode, currentValue);
+        }
+
+        if (type === "bar" && barMode === "grouped") {
+          trafficCreateGroupedBarChart(ctx, data, currentMode, currentValue);
+        }
+
+        if (type === "bar" && barMode === "stacked-horizontal") {
+          trafficCreateStackedHorizontalBarChart(ctx, data, currentMode, currentValue);
+        }
       }
 
       const btnDirect = wrapper.querySelector(".btn-direct");
@@ -84,8 +94,8 @@ function trafficInitChart(wrapper, dataUrl) {
     .catch(err => console.error("Error loading traffic data:", err));
 }
 
-// ========== Overview (Line) ==========
-function trafficCreateOverviewChart(ctx, data, mode, valueType) {
+// ========== Line Chart ==========
+function trafficCreateLineChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
   const getValues = arr => valueType === "percent" ? trafficToPercent(arr) : arr;
 
@@ -138,8 +148,8 @@ function trafficCreateOverviewChart(ctx, data, mode, valueType) {
   });
 }
 
-// ========== Sources (Vertical Grouped Bar) ==========
-function trafficCreateSourcesChart(ctx, data, mode, valueType) {
+// ========== Grouped Bar Chart ==========
+function trafficCreateGroupedBarChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
   const getValues = arr => valueType === "percent" ? trafficToPercent(arr) : arr;
 
@@ -169,8 +179,8 @@ function trafficCreateSourcesChart(ctx, data, mode, valueType) {
   });
 }
 
-// ========== Channels (Stacked Horizontal Bar) ==========
-function trafficCreateChannelsChart(ctx, data, mode, valueType) {
+// ========== Stacked Horizontal Bar Chart ==========
+function trafficCreateStackedHorizontalBarChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
   const getValues = arr => valueType === "percent" ? trafficToPercent(arr) : arr;
 
@@ -178,7 +188,7 @@ function trafficCreateChannelsChart(ctx, data, mode, valueType) {
     ? [data.yourCompany.name, ...data.competitors.map(c => c.name)]
     : [data.yourCompany.name, data.consolidatedCompetitors.name];
 
-  const colorPool = ["#3366cc", "#109618", "#ff9900", "#dc3912", "#0099c6"];
+  const colorPool = ["#3366cc", "#109618", "#ff9900", "#dc3912", "#0099c6", "#990099"];
   const datasets = data.periods.map((p, i) => {
     const vals = mode === "direct"
       ? [getValues(data.yourCompany.values)[i], ...data.competitors.map(c => getValues(c.values)[i])]
