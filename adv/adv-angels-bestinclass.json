@@ -1,0 +1,60 @@
+{
+  "chartType": "angles",
+  "yourCompany": {
+    "name": "Your Company",
+    "color": "#3366cc",
+    "anglesOffers": {
+      "VIP Membership": 30,
+      "Wellness Webinar": 25,
+      "Early Access": 20,
+      "Health Kit Bonus": 28
+    }
+  },
+  "competitors": [
+    {
+      "name": "Herbalife",
+      "color": "#dc3912",
+      "anglesOffers": {
+        "Coach Consultation": 32,
+        "Buy 1 Get 1": 26,
+        "Fitness Challenge": 24
+      }
+    },
+    {
+      "name": "Amway",
+      "color": "#ff9900",
+      "anglesOffers": {
+        "Limited Edition Pack": 29,
+        "Nutrition Quiz": 22,
+        "Surprise Gift": 27
+      }
+    },
+    {
+      "name": "GNC",
+      "color": "#109618",
+      "anglesOffers": {
+        "Points Multiplier": 31,
+        "Free Health Check": 23,
+        "Subscription Box": 25
+      }
+    },
+    {
+      "name": "Nature's Bounty",
+      "color": "#990099",
+      "anglesOffers": {
+        "Eco Packaging Offer": 28,
+        "Wellness E-Book": 21,
+        "Referral Bonus": 26
+      }
+    },
+    {
+      "name": "NOW Foods",
+      "color": "#0099c6",
+      "anglesOffers": {
+        "Free Delivery Weekend": 30,
+        "Social Media Contest": 24,
+        "Seasonal Bundle": 29
+      }
+    }
+  ]
+}
