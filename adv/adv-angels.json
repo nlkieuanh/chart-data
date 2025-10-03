@@ -5,7 +5,7 @@
     "color": "#3366cc",
     "anglesOffers": {
       "Free Trial": 30,
-      "Discount 20%": 40,
+      "Discount 20%": 35,
       "Customer Stories": 30,
       "Premium Upgrade": 20
     }
@@ -16,7 +16,7 @@
       "color": "#dc3912",
       "anglesOffers": {
         "Referral": 25,
-        "Flash Sale": 30,
+        "Flash Sale": 20,
         "Bundle Offer": 28
       }
     },
