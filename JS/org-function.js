@@ -55,19 +55,29 @@ function orgInitChart(wrapper, dataUrl) {
       const isGrouped = Array.isArray(data.yourCompany.values) && periodsCount <= 6;
       const isGeo = !Array.isArray(data.yourCompany.values); // values dạng object -> Geo Workforce
 
-      let currentMode = "direct";     // direct | consolidate
-      let currentValue = "absolute";  // absolute | percent
+      let currentMode = "direct";     
+      let currentValue = "absolute";  
 
       function setActive(group, activeBtn) {
         group.forEach(b => { if (b) b.classList.remove("is-active"); });
         if (activeBtn) activeBtn.classList.add("is-active");
       }
 
+      // giữ grid riêng cho geo
+      let geoGridEl = null;
+
       function renderChart() {
         if (isLine) orgCreateLineChart(ctx, data, currentMode, currentValue);
         if (isGrouped) orgCreateGroupedChart(ctx, data, currentMode, currentValue);
         if (isStacked) orgCreateStackedChart(ctx, data, currentMode, currentValue);
-        if (isGeo) orgCreateGeoCompanyCharts(rootCanvas, data, currentMode, currentValue);
+        if (isGeo) {
+          if (!geoGridEl) {
+            geoGridEl = document.createElement("div");
+            geoGridEl.className = "chart-grid"; // ✅ dùng chung class với adv
+            rootCanvas.replaceWith(geoGridEl);
+          }
+          orgCreateGeoCompanyCharts(geoGridEl, data, currentMode, currentValue);
+        }
       }
 
       // buttons
@@ -97,7 +107,6 @@ function orgInitChart(wrapper, dataUrl) {
         currentValue = "percent"; renderChart(); setActive(valueBtns, btnPct);
       });
 
-      // default render
       renderChart();
       setActive(modeBtns, btnDirect);
       setActive(valueBtns, btnAbs);
@@ -278,14 +287,7 @@ function orgComputeConsolidatedGeo(data) {
   return { name: "Average Competitors", color: "#999999", values: avg };
 }
 
-function orgCreateGeoCompanyCharts(rootCanvas, data, mode, valueType) {
-  const wrapper = rootCanvas.parentNode;
-  let grid = wrapper.querySelector(".geo-grid");
-  if (!grid) {
-    grid = document.createElement("div");
-    grid.className = "geo-grid";
-    rootCanvas.replaceWith(grid);
-  }
+function orgCreateGeoCompanyCharts(grid, data, mode, valueType) {
   grid.replaceChildren();
 
   if (mode === "direct") {
