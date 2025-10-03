@@ -1,5 +1,5 @@
 // ==================================================
-// Price Chart Functions for Webflow
+// Price & Shipping Chart Functions for Webflow
 // Prefix: price
 // ==================================================
 
@@ -28,6 +28,24 @@ function priceComputeConsolidated(data) {
   };
 }
 
+function priceComputeConsolidatedRadar(data) {
+  if (!data.competitors || !data.competitors.length) return null;
+  const metrics = Object.keys(data.competitors[0].radar);
+  const avgRadar = {};
+  metrics.forEach(m => {
+    let sum = 0, count = 0;
+    data.competitors.forEach(c => {
+      if (c.radar[m] !== undefined) { sum += c.radar[m]; count++; }
+    });
+    avgRadar[m] = count > 0 ? +(sum / count).toFixed(1) : 0;
+  });
+  return {
+    name: "Average Competitors",
+    color: "#999999",
+    radar: avgRadar
+  };
+}
+
 // ========== Init ==========
 function priceInitChart(wrapper, dataUrl) {
   const rootCanvas = wrapper.querySelector("canvas");
@@ -36,8 +54,8 @@ function priceInitChart(wrapper, dataUrl) {
     .then(res => res.json())
     .then(data => {
       const type = data.chartType || "line";
-      let currentMode = "direct";   // direct vs consolidate
-      let currentValue = "absolute"; // absolute vs percent
+      let currentMode = "direct";
+      let currentValue = "absolute";
 
       // Active state helper
       function setActive(group, activeBtn) {
@@ -45,7 +63,75 @@ function priceInitChart(wrapper, dataUrl) {
         if (activeBtn) activeBtn.classList.add("is-active");
       }
 
-      // Consolidated competitor line
+      // ===== SHIPPING SPECIAL =====
+      if (type === "shipping") {
+        // Tạo container grid thay canvas gốc
+        const grid = document.createElement("div");
+        grid.className = "chart-grid";
+        rootCanvas.replaceWith(grid);
+
+        function renderCharts() {
+          grid.replaceChildren();
+
+          // Line chart (full width row)
+          const lineWrap = document.createElement("div");
+          lineWrap.classList.add("chart-line-full");
+          const lineCanvas = document.createElement("canvas");
+          lineCanvas.id = "shipping-line";
+          lineWrap.appendChild(lineCanvas);
+          grid.appendChild(lineWrap);
+
+          // Vẽ line chart
+          const ctx = lineCanvas.getContext("2d");
+          data.consolidatedCompetitors = priceComputeConsolidated(data);
+          priceCreateLineChart(ctx, data, currentMode, currentValue);
+
+          // Grid con cho radar charts
+          const radarGrid = document.createElement("div");
+          radarGrid.className = "radar-grid";
+          grid.appendChild(radarGrid);
+
+          if (currentMode === "direct") {
+            priceCreateRadarBlock(radarGrid, data.yourCompany);
+            data.competitors.forEach(c => priceCreateRadarBlock(radarGrid, c));
+          } else {
+            priceCreateRadarBlock(radarGrid, data.yourCompany);
+            const avg = priceComputeConsolidatedRadar(data);
+            priceCreateRadarBlock(radarGrid, avg);
+          }
+        }
+
+        // Buttons
+        const btnDirect = wrapper.closest(".chart-canvas").querySelector(".btn-direct");
+        const btnConsolidate = wrapper.closest(".chart-canvas").querySelector(".btn-consolidate");
+        const btnAbs = wrapper.closest(".chart-canvas").querySelector(".btn-absolute");
+        const btnPct = wrapper.closest(".chart-canvas").querySelector(".btn-percent");
+
+        const modeBtns = [btnDirect, btnConsolidate];
+        const valueBtns = [btnAbs, btnPct];
+
+        if (btnDirect) btnDirect.addEventListener("click", () => {
+          currentMode = "direct"; currentValue = "absolute"; renderCharts();
+          setActive(modeBtns, btnDirect); setActive(valueBtns, btnAbs);
+        });
+        if (btnConsolidate) btnConsolidate.addEventListener("click", () => {
+          currentMode = "consolidate"; currentValue = "absolute"; renderCharts();
+          setActive(modeBtns, btnConsolidate); setActive(valueBtns, btnAbs);
+        });
+        if (btnAbs) btnAbs.addEventListener("click", () => {
+          currentValue = "absolute"; renderCharts(); setActive(valueBtns, btnAbs);
+        });
+        if (btnPct) btnPct.addEventListener("click", () => {
+          currentValue = "percent"; renderCharts(); setActive(valueBtns, btnPct);
+        });
+
+        renderCharts();
+        setActive(modeBtns, btnDirect);
+        setActive(valueBtns, btnAbs);
+        return;
+      }
+
+      // ===== OTHER CHART TYPES (Average Price) =====
       data.consolidatedCompetitors = priceComputeConsolidated(data);
 
       function renderChart() {
@@ -53,7 +139,6 @@ function priceInitChart(wrapper, dataUrl) {
         if (type === "line") priceCreateLineChart(ctx, data, currentMode, currentValue);
       }
 
-      // Buttons
       const btnDirect = wrapper.querySelector(".btn-direct");
       const btnConsolidate = wrapper.querySelector(".btn-consolidate");
       const btnAbs = wrapper.querySelector(".btn-absolute");
@@ -81,7 +166,7 @@ function priceInitChart(wrapper, dataUrl) {
       setActive(modeBtns, btnDirect);
       setActive(valueBtns, btnAbs);
     })
-    .catch(err => console.error("Error loading price data:", err));
+    .catch(err => console.error("Error loading price/shipping data:", err));
 }
 
 // ========== Line Chart ==========
@@ -146,7 +231,7 @@ function priceCreateLineChart(ctx, data, mode, valueType) {
               const val = context.raw;
               return valueType === "percent"
                 ? `${context.dataset.label}: ${val}%`
-                : `${context.dataset.label}: $${val}`;
+                : `${context.dataset.label}: ${val}`;
             }
           }
         }
@@ -160,6 +245,55 @@ function priceCreateLineChart(ctx, data, mode, valueType) {
           max: valueType === "percent" ? 100 : undefined
         }
       }
+    }
+  });
+}
+
+// ========== Radar Chart Block ==========
+function priceCreateRadarBlock(container, company) {
+  const block = document.createElement("div");
+  block.classList.add("company-chart");
+
+  const title = document.createElement("h4");
+  title.innerText = company.name;
+  block.appendChild(title);
+
+  const inner = document.createElement("div");
+  inner.classList.add("chart-inner");
+  inner.style.height = "280px"; // đồng bộ chiều cao radar
+  const canvas = document.createElement("canvas");
+  canvas.id = "radar-" + company.name.replace(/\s+/g, "-");
+  inner.appendChild(canvas);
+  block.appendChild(inner);
+  container.appendChild(block);
+
+  priceRenderRadarChart(canvas, company);
+}
+
+// ========== Radar Chart ==========
+function priceRenderRadarChart(canvas, company) {
+  if (window[canvas.id + "Chart"]) window[canvas.id + "Chart"].destroy();
+  const labels = Object.keys(company.radar);
+  const values = Object.values(company.radar);
+
+  window[canvas.id + "Chart"] = new Chart(canvas.getContext("2d"), {
+    type: "radar",
+    data: {
+      labels,
+      datasets: [{
+        label: company.name,
+        data: values,
+        backgroundColor: priceHexToRgba(company.color, 0.2),
+        borderColor: company.color,
+        borderWidth: 2,
+        pointBackgroundColor: company.color
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { r: { beginAtZero: true } }
     }
   });
 }
