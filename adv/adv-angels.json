@@ -1,0 +1,36 @@
+{
+  "chartType": "bar-horizontal",
+  "periods": ["Free Trial","Discount 20%","Customer Stories","Premium Upgrade"],
+  "yourCompany": {
+    "name": "Your Company",
+    "color": "#3366cc",
+    "values": [50, 40, 30, 20]
+  },
+  "competitors": [
+    {
+      "name": "Competitor A",
+      "color": "#dc3912",
+      "values": [45, 35, 25, 15]
+    },
+    {
+      "name": "Competitor B",
+      "color": "#ff9900",
+      "values": [30, 25, 20, 10]
+    },
+    {
+      "name": "Competitor C",
+      "color": "#109618",
+      "values": [25, 20, 15, 10]
+    },
+    {
+      "name": "Competitor D",
+      "color": "#990099",
+      "values": [20, 15, 10, 5]
+    },
+    {
+      "name": "Competitor E",
+      "color": "#0099c6",
+      "values": [15, 10, 8, 5]
+    }
+  ]
+}
