@@ -22,47 +22,25 @@ function advToPercent(arr) {
 // Compute consolidated competitors
 function advComputeConsolidated(data) {
   const competitors = data.competitors;
-  const avg = {};
+  if (!competitors || competitors.length === 0) return null;
 
-  // clone keys from first competitor
-  const sample = competitors[0];
-  for (const key in sample) {
-    if (Array.isArray(sample[key])) {
-      avg[key] = Array(sample[key].length).fill(0);
-    } else if (typeof sample[key] === "object") {
-      avg[key] = {};
-      for (const sub in sample[key]) avg[key][sub] = 0;
-    }
-  }
+  const avg = { values: [] };
+  const length = competitors[0].values.length;
+
+  // init array zeros
+  avg.values = Array(length).fill(0);
 
   competitors.forEach(c => {
-    for (const key in c) {
-      if (Array.isArray(c[key])) {
-        c[key].forEach((v, i) => avg[key][i] += v);
-      } else if (typeof c[key] === "object") {
-        for (const sub in c[key]) {
-          avg[key][sub] = (avg[key][sub] || 0) + (c[key][sub] || 0);
-        }
-      }
-    }
+    c.values.forEach((v, i) => {
+      avg.values[i] += v;
+    });
   });
 
-  // average
-  for (const key in avg) {
-    if (Array.isArray(avg[key])) {
-      avg[key] = avg[key].map(v => v / competitors.length);
-    } else if (typeof avg[key] === "object") {
-      for (const sub in avg[key]) {
-        avg[key][sub] = avg[key][sub] / competitors.length;
-      }
-    }
-  }
+  avg.values = avg.values.map(v => v / competitors.length);
+  avg.name = "Average Competitors";
+  avg.color = "#999999";
 
-  return {
-    name: "Average Competitors",
-    color: "#aaaaaa",
-    ...avg
-  };
+  return avg;
 }
 
 // ========== Init Function ==========
@@ -74,20 +52,21 @@ function advInitChart(wrapper, dataUrl) {
   fetch(dataUrl)
     .then(res => res.json())
     .then(data => {
+      // tính consolidate
       data.consolidatedCompetitors = advComputeConsolidated(data);
 
+      const type = data.chartType; // đọc loại chart từ JSON
       let currentMode = "direct";    // direct | consolidate
       let currentValue = "absolute"; // absolute | percent
 
       function renderChart() {
-        const type = wrapper.dataset.type;
-        if (type === "overallTrend") advCreateOverallTrend(ctx, data, currentMode);
-        if (type === "formatBreakdown") advCreateFormatBreakdown(ctx, data, currentMode, currentValue);
-        if (type === "anglesOffers") advCreateAnglesOffers(ctx, data, currentMode, currentValue);
-        if (type === "channels") advCreateChannels(ctx, data, currentMode, currentValue);
+        if (type === "line") advCreateLineChart(ctx, data, currentMode, currentValue);
+        if (type === "bar-grouped") advCreateGroupedBarChart(ctx, data, currentMode, currentValue);
+        if (type === "bar-stacked") advCreateStackedBarChart(ctx, data, currentMode, currentValue);
+        if (type === "bar-horizontal") advCreateHorizontalBarChart(ctx, data, currentMode, currentValue);
       }
 
-      // buttons
+      // buttons (nếu có trong wrapper)
       const btnDirect = wrapper.querySelector(".btn-direct");
       const btnConsolidate = wrapper.querySelector(".btn-consolidate");
       const btnAbs = wrapper.querySelector(".btn-absolute");
@@ -101,7 +80,7 @@ function advInitChart(wrapper, dataUrl) {
         if (activeBtn) activeBtn.classList.add("is-active");
       }
 
-      // Mode events
+      // mode events
       if (btnDirect) btnDirect.addEventListener("click", () => {
         currentMode = "direct";
         currentValue = "absolute";
@@ -118,7 +97,7 @@ function advInitChart(wrapper, dataUrl) {
         setActive(valueBtns, btnAbs);
       });
 
-      // Value events
+      // value events
       if (btnAbs) btnAbs.addEventListener("click", () => {
         currentValue = "absolute";
         renderChart();
@@ -141,35 +120,47 @@ function advInitChart(wrapper, dataUrl) {
 
 // ========== Chart Creators ==========
 
-// Overall Trend
-function advCreateOverallTrend(ctx, data, mode) {
+// Line Chart
+function advCreateLineChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
+  function getValues(arr) { return valueType === "percent" ? advToPercent(arr) : arr; }
 
   const datasets = [];
-  const consolidated = data.consolidatedCompetitors;
-
   if (mode === "direct") {
     datasets.push({
       label: data.yourCompany.name,
-      data: data.yourCompany.overallTrend,
+      data: getValues(data.yourCompany.values),
       borderColor: data.yourCompany.color,
+      backgroundColor: advHexToRgba(data.yourCompany.color, 0.3),
+      tension: 0.3,
       fill: false
     });
     data.competitors.forEach(c => {
-      datasets.push({ label: c.name, data: c.overallTrend, borderColor: c.color, fill: false });
+      datasets.push({
+        label: c.name,
+        data: getValues(c.values),
+        borderColor: c.color,
+        backgroundColor: advHexToRgba(c.color, 0.3),
+        borderDash: [4, 2],
+        tension: 0.3,
+        fill: false
+      });
     });
   } else {
     datasets.push({
       label: data.yourCompany.name,
-      data: data.yourCompany.overallTrend,
+      data: getValues(data.yourCompany.values),
       borderColor: data.yourCompany.color,
+      backgroundColor: advHexToRgba(data.yourCompany.color, 0.3),
+      tension: 0.3,
       fill: false
     });
     datasets.push({
-      label: "Average Competitors",
-      data: consolidated.overallTrend,
-      borderColor: "#999999",
-      borderDash: [5, 5],
+      label: data.consolidatedCompetitors.name,
+      data: getValues(data.consolidatedCompetitors.values),
+      borderColor: data.consolidatedCompetitors.color,
+      borderDash: [6, 3],
+      tension: 0.3,
       fill: false
     });
   }
@@ -177,25 +168,71 @@ function advCreateOverallTrend(ctx, data, mode) {
   window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
     type: "line",
     data: { labels: data.periods, datasets },
-    options: { responsive: true, plugins: { datalabels: false } }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom" } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { callback: val => valueType === "percent" ? val + "%" : val },
+          max: valueType === "percent" ? 100 : undefined
+        }
+      }
+    }
   });
 }
 
-// Format Breakdown
-function advCreateFormatBreakdown(ctx, data, mode, scale) {
+// Grouped Bar Chart
+function advCreateGroupedBarChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
+  function getValues(arr) { return valueType === "percent" ? advToPercent(arr) : arr; }
 
-  let companies = mode === "direct"
-    ? [data.yourCompany, ...data.competitors]
-    : [data.yourCompany, data.consolidatedCompetitors];
-
-  const labels = Object.keys(data.yourCompany.formatBreakdown);
   const datasets = [];
+  if (mode === "direct") {
+    datasets.push({ label: data.yourCompany.name, data: getValues(data.yourCompany.values), backgroundColor: data.yourCompany.color });
+    data.competitors.forEach(c => {
+      datasets.push({ label: c.name, data: getValues(c.values), backgroundColor: c.color });
+    });
+  } else {
+    datasets.push({ label: data.yourCompany.name, data: getValues(data.yourCompany.values), backgroundColor: data.yourCompany.color });
+    datasets.push({ label: data.consolidatedCompetitors.name, data: getValues(data.consolidatedCompetitors.values), backgroundColor: data.consolidatedCompetitors.color });
+  }
 
-  companies.forEach(comp => {
-    let values = labels.map(l => comp.formatBreakdown[l] || 0);
-    if (scale === "percent") values = advToPercent(values);
-    datasets.push({ label: comp.name, data: values, backgroundColor: comp.color });
+  window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
+    type: "bar",
+    data: { labels: data.periods, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom" } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { callback: val => valueType === "percent" ? val + "%" : val },
+          max: valueType === "percent" ? 100 : undefined
+        }
+      }
+    }
+  });
+}
+
+// Stacked Bar Chart
+function advCreateStackedBarChart(ctx, data, mode, valueType) {
+  if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
+  function getValues(arr) { return valueType === "percent" ? advToPercent(arr) : arr; }
+
+  const labels = mode === "direct"
+    ? [data.yourCompany.name, ...data.competitors.map(c => c.name)]
+    : [data.yourCompany.name, data.consolidatedCompetitors.name];
+
+  const datasets = data.periods.map((item, i) => {
+    let itemValues = mode === "direct"
+      ? [getValues(data.yourCompany.values)[i], ...data.competitors.map(c => getValues(c.values)[i])]
+      : [getValues(data.yourCompany.values)[i], getValues(data.consolidatedCompetitors.values)[i]];
+
+    const colors = ["#3366cc", "#dc3912", "#ff9900", "#109618", "#990099", "#0099c6"];
+    return { label: item, data: itemValues, backgroundColor: colors[i % colors.length] };
   });
 
   window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
@@ -203,79 +240,53 @@ function advCreateFormatBreakdown(ctx, data, mode, scale) {
     data: { labels, datasets },
     options: {
       responsive: true,
-      plugins: {
-        datalabels: {
-          color: "#333", anchor: "end", align: "top", font: { size: 10 }
-        }
-      }
-    },
-    plugins: [ChartDataLabels]
-  });
-}
-
-// Angles & Offers
-function advCreateAnglesOffers(ctx, data, mode, scale) {
-  if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
-
-  let companies = mode === "direct"
-    ? [data.yourCompany, ...data.competitors]
-    : [data.yourCompany, data.consolidatedCompetitors];
-
-  let allAngles = new Set();
-  companies.forEach(c => Object.keys(c.anglesOffers).forEach(a => allAngles.add(a)));
-  let labels = Array.from(allAngles);
-  let datasets = [];
-
-  companies.forEach(comp => {
-    let values = labels.map(l => comp.anglesOffers[l] || 0);
-    if (scale === "percent") values = advToPercent(values);
-    datasets.push({ label: comp.name, data: values, backgroundColor: comp.color });
-  });
-
-  window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
-    type: "bar",
-    data: { labels, datasets },
-    options: {
+      maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom" } },
       indexAxis: "y",
-      responsive: true,
-      plugins: {
-        datalabels: {
-          color: "#333", anchor: "end", align: "right", font: { size: 10 }
-        }
+      scales: {
+        x: {
+          stacked: true,
+          beginAtZero: true,
+          max: valueType === "percent" ? 100 : undefined,
+          ticks: { callback: val => valueType === "percent" ? val + "%" : val }
+        },
+        y: { stacked: true }
       }
-    },
-    plugins: [ChartDataLabels]
+    }
   });
 }
 
-// Channels
-function advCreateChannels(ctx, data, mode, scale) {
+// Horizontal Bar Chart
+function advCreateHorizontalBarChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
+  function getValues(arr) { return valueType === "percent" ? advToPercent(arr) : arr; }
 
-  let companies = mode === "direct"
-    ? [data.yourCompany, ...data.competitors]
-    : [data.yourCompany, data.consolidatedCompetitors];
-
-  const labels = Object.keys(data.yourCompany.channels);
   const datasets = [];
-
-  companies.forEach(comp => {
-    let values = labels.map(l => comp.channels[l] || 0);
-    if (scale === "percent") values = advToPercent(values);
-    datasets.push({ label: comp.name, data: values, backgroundColor: comp.color });
-  });
+  if (mode === "direct") {
+    datasets.push({ label: data.yourCompany.name, data: getValues(data.yourCompany.values), backgroundColor: data.yourCompany.color });
+    data.competitors.forEach(c => {
+      datasets.push({ label: c.name, data: getValues(c.values), backgroundColor: c.color });
+    });
+  } else {
+    datasets.push({ label: data.yourCompany.name, data: getValues(data.yourCompany.values), backgroundColor: data.yourCompany.color });
+    datasets.push({ label: data.consolidatedCompetitors.name, data: getValues(data.consolidatedCompetitors.values), backgroundColor: data.consolidatedCompetitors.color });
+  }
 
   window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
     type: "bar",
-    data: { labels, datasets },
+    data: { labels: data.periods, datasets },
     options: {
       responsive: true,
-      plugins: {
-        datalabels: {
-          color: "#333", anchor: "end", align: "top", font: { size: 10 }
+      maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom" } },
+      indexAxis: "y",
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { callback: val => valueType === "percent" ? val + "%" : val },
+          max: valueType === "percent" ? 100 : undefined
         }
       }
-    },
-    plugins: [ChartDataLabels]
+    }
   });
 }
