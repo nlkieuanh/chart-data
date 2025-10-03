@@ -1,0 +1,36 @@
+{
+  "chartType": "bar-grouped",
+  "periods": ["Facebook","Google","TikTok","LinkedIn"],
+  "yourCompany": {
+    "name": "Your Company",
+    "color": "#3366cc",
+    "values": [120, 140, 90, 70]
+  },
+  "competitors": [
+    {
+      "name": "Herbalife",
+      "color": "#dc3912",
+      "values": [110, 130, 85, 65]
+    },
+    {
+      "name": "Amway",
+      "color": "#ff9900",
+      "values": [100, 120, 80, 60]
+    },
+    {
+      "name": "GNC",
+      "color": "#109618",
+      "values": [95, 110, 70, 55]
+    },
+    {
+      "name": "Nature's Bounty",
+      "color": "#990099",
+      "values": [85, 100, 65, 50]
+    },
+    {
+      "name": "NOW Foods",
+      "color": "#0099c6",
+      "values": [80, 90, 60, 45]
+    }
+  ]
+}
