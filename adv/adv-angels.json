@@ -4,7 +4,7 @@
     "name": "Your Company",
     "color": "#3366cc",
     "anglesOffers": {
-      "Free Trial": 50,
+      "Free Trial": 30,
       "Discount 20%": 40,
       "Customer Stories": 30,
       "Premium Upgrade": 20
@@ -17,7 +17,7 @@
       "anglesOffers": {
         "Referral": 25,
         "Flash Sale": 30,
-        "Bundle Offer": 40
+        "Bundle Offer": 28
       }
     },
     {
