@@ -1,17 +1,6 @@
 {
   "periods": [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec"
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
   ],
   "yourCompany": {
     "name": "Your Company",
@@ -83,7 +72,75 @@
         "TikTok": 60,
         "LinkedIn": 40
       }
+    },
+    {
+      "name": "Competitor C",
+      "color": "#109618",
+      "overallTrend": [25, 35, 45, 55, 65, 75, 85, 95, 100, 110, 120, 130],
+      "formatBreakdown": {
+        "Video Ads": 70,
+        "Image Ads": 40,
+        "Only Text Ads": 30,
+        "Search Ads": 35,
+        "Social Ads": 55
+      },
+      "anglesOffers": {
+        "Flash Sale": 20,
+        "Trial Pack": 25,
+        "Referral Bonus": 15
+      },
+      "channels": {
+        "Facebook": 90,
+        "Google": 70,
+        "TikTok": 55,
+        "LinkedIn": 35
+      }
+    },
+    {
+      "name": "Competitor D",
+      "color": "#990099",
+      "overallTrend": [20, 25, 35, 45, 55, 65, 75, 80, 95, 105, 115, 125],
+      "formatBreakdown": {
+        "Video Ads": 60,
+        "Image Ads": 30,
+        "Only Text Ads": 25,
+        "Search Ads": 30,
+        "Social Ads": 45
+      },
+      "anglesOffers": {
+        "Free Shipping": 30,
+        "Seasonal Offer": 20,
+        "Loyalty Program": 15
+      },
+      "channels": {
+        "Facebook": 80,
+        "Google": 60,
+        "TikTok": 40,
+        "LinkedIn": 30
+      }
+    },
+    {
+      "name": "Competitor E",
+      "color": "#0099c6",
+      "overallTrend": [15, 25, 30, 40, 50, 60, 70, 75, 85, 95, 105, 115],
+      "formatBreakdown": {
+        "Video Ads": 55,
+        "Image Ads": 25,
+        "Only Text Ads": 15,
+        "Search Ads": 25,
+        "Social Ads": 35
+      },
+      "anglesOffers": {
+        "New Product Launch": 25,
+        "Cashback": 20,
+        "Limited Stock": 15
+      },
+      "channels": {
+        "Facebook": 70,
+        "Google": 50,
+        "TikTok": 35,
+        "LinkedIn": 25
+      }
     }
-    // Thêm Competitor C, D, E tương tự
   ]
 }
