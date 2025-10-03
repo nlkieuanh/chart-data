@@ -1,80 +1,65 @@
 {
-  "periods": ["US", "UK", "IN", "VN", "DE", "FR", "JP", "CA", "BR"],
+  "periods": ["United States", "United Kingdom", "India", "Vietnam", "Germany", "France", "Japan", "Canada", "Brazil", "China"],
   "yourCompany": {
     "name": "Your Company",
     "color": "#3366cc",
     "values": {
-      "US": 500,
-      "IN": 300,
-      "VN": 200,
-      "JP": 100
+      "United States": 500,
+      "India": 300,
+      "Vietnam": 200,
+      "Japan": 100
     }
   },
   "competitors": [
     {
-      "name": "Competitor A",
+      "name": "Competitor 01",
       "color": "#dc3912",
       "values": {
-        "US": 600,
-        "UK": 150,
-        "IN": 200,
-        "CA": 50
+        "China": 600,
+        "United Kingdom": 150,
+        "India": 200,
+        "Canada": 50
       }
     },
     {
-      "name": "Competitor B",
+      "name": "Competitor 02",
       "color": "#ff9900",
       "values": {
-        "US": 400,
-        "DE": 100,
-        "FR": 120,
-        "IN": 250
+        "United Kingdom": 400,
+        "Germany": 100,
+        "France": 120,
+        "India": 250
       }
     },
     {
-      "name": "Competitor C",
+      "name": "Competitor 03",
       "color": "#109618",
       "values": {
-        "VN": 220,
-        "IN": 280,
-        "JP": 130,
-        "BR": 60
+        "Vietnam": 220,
+        "India": 280,
+        "Japan": 130,
+        "Brazil": 60
       }
     },
     {
-      "name": "Competitor D",
+      "name": "Competitor 04",
       "color": "#990099",
       "values": {
-        "US": 550,
-        "UK": 180,
-        "DE": 90,
-        "IN": 310
+        "Germany": 550,
+        "United Kingdom": 180,
+        "Germany": 90,
+        "India": 310
       }
     },
     {
-      "name": "Competitor E",
-      "color": "#dd4477",
+      "name": "Competitor 05",
+      "color": "#0099c6",
       "values": {
-        "US": 480,
-        "FR": 140,
-        "JP": 120,
-        "IN": 260
+        "United States": 480,
+        "France": 140,
+        "Japan": 120,
+        "India": 260
       }
     }
-  ],
-  "consolidatedCompetitors": {
-    "name": "Average Competitors",
-    "color": "#0099c6",
-    "values": {
-      "US": 506,
-      "UK": 66,
-      "IN": 260,
-      "VN": 44,
-      "DE": 63,
-      "FR": 53,
-      "JP": 50,
-      "CA": 10,
-      "BR": 12
-    }
-  }
+  ]
 }
