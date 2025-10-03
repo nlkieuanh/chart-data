@@ -1,4 +1,6 @@
 {
+  "chartType": "bar",
+  "barMode": "stacked-horizontal",
   "periods": ["Organic", "Paid", "Social", "Referral", "Other"],
   "yourCompany": {
     "name": "Your Company",
