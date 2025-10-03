@@ -1,0 +1,81 @@
+{
+  "chartType": "shipping",
+  "periods": [
+    "Jan","Feb","Mar","Apr","May","Jun",
+    "Jul","Aug","Sep","Oct","Nov","Dec"
+  ],
+  "yourCompany": {
+    "name": "Your Company",
+    "color": "#3366cc",
+    "values": [78, 80, 82, 81, 83, 85, 84, 86, 88, 87, 89, 90],
+    "radar": {
+      "Average Delivery Time": 3.5,
+      "On-time Delivery Rate": 92,
+      "Damage/Loss Rate": 2,
+      "Average Shipping Cost": 5.0,
+      "Customer Shipping Ratings": 4.4
+    }
+  },
+  "competitors": [
+    {
+      "name": "Competitor A",
+      "color": "#dc3912",
+      "values": [70, 72, 74, 75, 76, 77, 78, 80, 81, 82, 84, 85],
+      "radar": {
+        "Average Delivery Time": 4.0,
+        "On-time Delivery Rate": 88,
+        "Damage/Loss Rate": 3,
+        "Average Shipping Cost": 6.0,
+        "Customer Shipping Ratings": 4.0
+      }
+    },
+    {
+      "name": "Competitor B",
+      "color": "#ff9900",
+      "values": [65, 67, 68, 70, 72, 71, 73, 74, 76, 75, 77, 78],
+      "radar": {
+        "Average Delivery Time": 5.0,
+        "On-time Delivery Rate": 85,
+        "Damage/Loss Rate": 4,
+        "Average Shipping Cost": 5.5,
+        "Customer Shipping Ratings": 3.9
+      }
+    },
+    {
+      "name": "Competitor C",
+      "color": "#109618",
+      "values": [82, 83, 84, 85, 86, 87, 88, 87, 89, 90, 91, 92],
+      "radar": {
+        "Average Delivery Time": 3.0,
+        "On-time Delivery Rate": 95,
+        "Damage/Loss Rate": 1,
+        "Average Shipping Cost": 4.8,
+        "Customer Shipping Ratings": 4.7
+      }
+    },
+    {
+      "name": "Competitor D",
+      "color": "#990099",
+      "values": [60, 61, 62, 64, 65, 66, 67, 68, 69, 70, 72, 73],
+      "radar": {
+        "Average Delivery Time": 5.2,
+        "On-time Delivery Rate": 80,
+        "Damage/Loss Rate": 5,
+        "Average Shipping Cost": 6.2,
+        "Customer Shipping Ratings": 3.8
+      }
+    },
+    {
+      "name": "Competitor E",
+      "color": "#0099c6",
+      "values": [75, 76, 77, 76, 78, 79, 80, 81, 82, 83, 84, 85],
+      "radar": {
+        "Average Delivery Time": 3.8,
+        "On-time Delivery Rate": 90,
+        "Damage/Loss Rate": 2,
+        "Average Shipping Cost": 5.2,
+        "Customer Shipping Ratings": 4.2
+      }
+    }
+  ]
+}
