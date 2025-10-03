@@ -43,56 +43,42 @@ function advInitChart(wrapper, dataUrl) {
       let currentMode = "direct";
       let currentValue = "absolute";
 
+      // helper for active button
+      function setActive(group, activeBtn) {
+        group.forEach(b => { if (b) b.classList.remove("is-active"); });
+        if (activeBtn) activeBtn.classList.add("is-active");
+      }
+
       // Special case: Angles
       if (type === "angles") {
         const angleSet = new Set(Object.keys(data.yourCompany.anglesOffers));
         data.competitors.forEach(c => Object.keys(c.anglesOffers).forEach(a => angleSet.add(a)));
         const labels = Array.from(angleSet);
 
-        // remove canvas gốc → wrapper thành container
         rootCanvas.remove();
+        wrapper.classList.add("chart-grid");
 
         function renderCharts() {
           wrapper.innerHTML = "";
 
           if (currentMode === "direct") {
-            // Your company
-            const ycCanvas = document.createElement("canvas");
-            ycCanvas.id = "chart-yourCompany";
-            wrapper.appendChild(ycCanvas);
-            advRenderAnglesChart(ycCanvas, data.yourCompany, labels, currentValue);
-
-            // Competitors
-            data.competitors.forEach((c, i) => {
-              const cCanvas = document.createElement("canvas");
-              cCanvas.id = "chart-comp-" + i;
-              wrapper.appendChild(cCanvas);
-              advRenderAnglesChart(cCanvas, c, labels, currentValue);
+            advCreateCompanyBlock(wrapper, data.yourCompany, labels, currentValue);
+            data.competitors.forEach(c => {
+              advCreateCompanyBlock(wrapper, c, labels, currentValue);
             });
           } else {
-            // Your company
-            const ycCanvas = document.createElement("canvas");
-            ycCanvas.id = "chart-yourCompany";
-            wrapper.appendChild(ycCanvas);
-            advRenderAnglesChart(ycCanvas, data.yourCompany, labels, currentValue);
+            advCreateCompanyBlock(wrapper, data.yourCompany, labels, currentValue);
 
-            // Average competitors
             const avg = {};
             labels.forEach(l => {
               let sum = 0, count = 0;
               data.competitors.forEach(c => {
-                if (c.anglesOffers[l]) {
-                  sum += c.anglesOffers[l];
-                  count++;
-                }
+                if (c.anglesOffers[l]) { sum += c.anglesOffers[l]; count++; }
               });
               avg[l] = count > 0 ? +(sum / count).toFixed(1) : 0;
             });
 
-            const avgCanvas = document.createElement("canvas");
-            avgCanvas.id = "chart-consolidated";
-            wrapper.appendChild(avgCanvas);
-            advRenderAnglesChart(avgCanvas, {
+            advCreateCompanyBlock(wrapper, {
               name: "Average Competitors",
               color: "#999999",
               anglesOffers: avg
@@ -100,22 +86,36 @@ function advInitChart(wrapper, dataUrl) {
           }
         }
 
-        // attach buttons
         const btnDirect = wrapper.closest(".chart-canvas").querySelector(".btn-direct");
         const btnConsolidate = wrapper.closest(".chart-canvas").querySelector(".btn-consolidate");
         const btnAbs = wrapper.closest(".chart-canvas").querySelector(".btn-absolute");
         const btnPct = wrapper.closest(".chart-canvas").querySelector(".btn-percent");
 
-        if (btnDirect) btnDirect.addEventListener("click", () => { currentMode="direct"; currentValue="absolute"; renderCharts(); });
-        if (btnConsolidate) btnConsolidate.addEventListener("click", () => { currentMode="consolidate"; currentValue="absolute"; renderCharts(); });
-        if (btnAbs) btnAbs.addEventListener("click", () => { currentValue="absolute"; renderCharts(); });
-        if (btnPct) btnPct.addEventListener("click", () => { currentValue="percent"; renderCharts(); });
+        const modeBtns = [btnDirect, btnConsolidate];
+        const valueBtns = [btnAbs, btnPct];
+
+        if (btnDirect) btnDirect.addEventListener("click", () => { 
+          currentMode="direct"; currentValue="absolute"; renderCharts(); 
+          setActive(modeBtns, btnDirect); setActive(valueBtns, btnAbs); 
+        });
+        if (btnConsolidate) btnConsolidate.addEventListener("click", () => { 
+          currentMode="consolidate"; currentValue="absolute"; renderCharts(); 
+          setActive(modeBtns, btnConsolidate); setActive(valueBtns, btnAbs); 
+        });
+        if (btnAbs) btnAbs.addEventListener("click", () => { 
+          currentValue="absolute"; renderCharts(); setActive(valueBtns, btnAbs); 
+        });
+        if (btnPct) btnPct.addEventListener("click", () => { 
+          currentValue="percent"; renderCharts(); setActive(valueBtns, btnPct); 
+        });
 
         renderCharts();
+        setActive(modeBtns, btnDirect);
+        setActive(valueBtns, btnAbs);
         return;
       }
 
-      // Non-angles charts
+      // Other chart types
       data.consolidatedCompetitors = advComputeConsolidated(data);
 
       function renderChart() {
@@ -125,20 +125,52 @@ function advInitChart(wrapper, dataUrl) {
         if (type === "bar-horizontal") advCreateHorizontalBarChart(rootCanvas.getContext("2d"), data, currentMode, currentValue);
       }
 
-      // attach buttons
       const btnDirect = wrapper.querySelector(".btn-direct");
       const btnConsolidate = wrapper.querySelector(".btn-consolidate");
       const btnAbs = wrapper.querySelector(".btn-absolute");
       const btnPct = wrapper.querySelector(".btn-percent");
 
-      if (btnDirect) btnDirect.addEventListener("click", () => { currentMode="direct"; currentValue="absolute"; renderChart(); });
-      if (btnConsolidate) btnConsolidate.addEventListener("click", () => { currentMode="consolidate"; currentValue="absolute"; renderChart(); });
-      if (btnAbs) btnAbs.addEventListener("click", () => { currentValue="absolute"; renderChart(); });
-      if (btnPct) btnPct.addEventListener("click", () => { currentValue="percent"; renderChart(); });
+      const modeBtns = [btnDirect, btnConsolidate];
+      const valueBtns = [btnAbs, btnPct];
+
+      if (btnDirect) btnDirect.addEventListener("click", () => { 
+        currentMode="direct"; currentValue="absolute"; renderChart(); 
+        setActive(modeBtns, btnDirect); setActive(valueBtns, btnAbs); 
+      });
+      if (btnConsolidate) btnConsolidate.addEventListener("click", () => { 
+        currentMode="consolidate"; currentValue="absolute"; renderChart(); 
+        setActive(modeBtns, btnConsolidate); setActive(valueBtns, btnAbs); 
+      });
+      if (btnAbs) btnAbs.addEventListener("click", () => { 
+        currentValue="absolute"; renderChart(); setActive(valueBtns, btnAbs); 
+      });
+      if (btnPct) btnPct.addEventListener("click", () => { 
+        currentValue="percent"; renderChart(); setActive(valueBtns, btnPct); 
+      });
 
       renderChart();
+      setActive(modeBtns, btnDirect);
+      setActive(valueBtns, btnAbs);
     })
     .catch(err => console.error("Error loading adv data:", err));
+}
+
+// ========== Company Block for Angles ==========
+function advCreateCompanyBlock(wrapper, company, labels, valueType) {
+  const block = document.createElement("div");
+  block.classList.add("company-chart");
+
+  const title = document.createElement("h4");
+  title.innerText = company.name;
+  block.appendChild(title);
+
+  const canvas = document.createElement("canvas");
+  canvas.id = "chart-" + company.name.replace(/\s+/g,"-");
+  block.appendChild(canvas);
+
+  wrapper.appendChild(block);
+
+  advRenderAnglesChart(canvas, company, labels, valueType);
 }
 
 // ========== Chart Functions ==========
@@ -254,7 +286,7 @@ function advCreateStackedBarChart(ctx, data, mode, valueType){
   });
 }
 
-// Horizontal Bar Chart (non-angles)
+// Horizontal Bar Chart
 function advCreateHorizontalBarChart(ctx, data, mode, valueType){
   if(window[ctx.canvas.id+"Chart"])window[ctx.canvas.id+"Chart"].destroy();
   function getValues(arr){return valueType==="percent"?advToPercent(arr):arr;}
@@ -284,7 +316,7 @@ function advCreateHorizontalBarChart(ctx, data, mode, valueType){
   });
 }
 
-// Angles Chart (multi-chart mode)
+// Angles Chart
 function advRenderAnglesChart(canvas, company, labels, valueType){
   if(window[canvas.id+"Chart"])window[canvas.id+"Chart"].destroy();
   const arr=labels.map(l=>company.anglesOffers[l]||0);
@@ -297,15 +329,15 @@ function advRenderAnglesChart(canvas, company, labels, valueType){
       plugins:{
         legend:{display:false},
         datalabels:{
-          anchor:"end",align:"right",color:"#fff",font:{size:11},
+          anchor:"end",align:"right",color:"#333",font:{size:12,weight:"bold"},
           formatter:v=>v===0?"":(valueType==="percent"?v+"%":v)
         }
       },
       indexAxis:"y",
       scales:{
-        x:{beginAtZero:true,
-           max:valueType==="percent"?100:undefined,
-           ticks:{callback:val=>valueType==="percent"?val+"%":val}}
+        y:{ticks:{color:"#000",font:{size:12}}},
+        x:{beginAtZero:true,grid:{display:false},ticks:{display:false},
+           max:valueType==="percent"?100:undefined}
       }
     },
     plugins:[ChartDataLabels]
