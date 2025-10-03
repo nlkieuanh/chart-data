@@ -1,4 +1,6 @@
 {
+  "chartType": "bar",
+  "barMode": "grouped",
   "periods": ["Direct", "Organic", "Paid", "Referral", "Social"],
   "yourCompany": {
     "name": "Your Company",
