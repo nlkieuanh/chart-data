@@ -32,10 +32,5 @@
       "color": "#dd4477",
       "values": [60, 65, 78, 70]
     }
-  ],
-  "consolidatedCompetitors": {
-    "name": "Average Competitors",
-    "color": "#0099c6",
-    "values": [69, 76, 76.6, 70]
-  }
+  ]
 }
