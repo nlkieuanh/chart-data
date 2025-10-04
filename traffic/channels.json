@@ -1,37 +1,37 @@
 {
   "chartType": "bar",
   "barMode": "stacked-horizontal",
-  "periods": ["Organic", "Paid", "Social", "Referral", "Other"],
+  "periods": ["Direct", "Organic Search", "Paid Search", "Referral", "Display", "Social", "Email"],
   "yourCompany": {
     "name": "Your Company",
     "color": "#3366cc",
-    "values": [5000, 2000, 1500, 800, 700]
+    "values": [5000, 2000, 1500, 800, 700, 1000, 400]
   },
   "competitors": [
     {
       "name": "Competitor A",
       "color": "#dc3912",
-      "values": [4200, 1800, 1300, 700, 600]
+      "values": [4200, 1800, 1300, 700, 600, 500, 750]
     },
     {
       "name": "Competitor B",
       "color": "#ff9900",
-      "values": [4600, 1900, 1400, 650, 550]
+      "values": [4600, 1900, 1400, 650, 550, 300, 600]
     },
     {
       "name": "Competitor C",
       "color": "#109618",
-      "values": [4000, 1700, 1200, 600, 500]
+      "values": [4000, 1700, 1200, 600, 500 ,400, 400]
     },
     {
       "name": "Competitor D",
       "color": "#990099",
-      "values": [4300, 1850, 1350, 720, 580]
+      "values": [4300, 1850, 1350, 720, 580, 580, 580]
     },
     {
       "name": "Competitor E",
       "color": "#0099c6",
-      "values": [4100, 1750, 1250, 680, 520]
+      "values": [4100, 1750, 1250, 680, 520, 800, 600]
     }
   ]
 }
