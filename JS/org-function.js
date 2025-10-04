@@ -313,7 +313,7 @@ function chartRenderGeoBarChart(canvas, company, valueType, opts) {
           beginAtZero: true,
           grid: { display: false },
           ticks: { display: false },
-          max: valueType === "percent" ? 100 : undefined
+          max: valueType === "percent" ? 100 : maxScaleValue
         }
       }
     },
