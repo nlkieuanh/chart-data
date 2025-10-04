@@ -16,7 +16,7 @@
       "name": "Herbalife",
       "color": "#dc3912",
       "values": {
-        "United States": 620,
+        "France": 620,
         "United Kingdom": 180,
         "Canada": 90,
         "Brazil": 70
@@ -36,7 +36,7 @@
       "name": "GNC",
       "color": "#109618",
       "values": {
-        "Vietnam": 230,
+        "Germany": 230,
         "India": 260,
         "Japan": 150,
         "Brazil": 80
@@ -46,7 +46,7 @@
       "name": "Nature's Bounty",
       "color": "#990099",
       "values": {
-        "United States": 540,
+        "Canada": 540,
         "United Kingdom": 160,
         "Germany": 110,
         "India": 290
@@ -58,7 +58,7 @@
       "values": {
         "France": 130,
         "Japan": 140,
-        "United States": 490,
+        "Brazil": 490,
         "Vietnam": 150
       }
     }
