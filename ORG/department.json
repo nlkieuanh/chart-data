@@ -1,4 +1,5 @@
 {
+  "chartType": "stacked-bar",
   "periods": [
     "Engineering",
     "Product",
