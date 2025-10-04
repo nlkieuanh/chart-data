@@ -290,11 +290,11 @@ function chartRenderGeoBarChart(canvas, company, valueType, opts) {
       plugins: {
         legend: { display: false },
         datalabels: {
-          anchor: "end",
+          anchor: "start",
           align: "right",
           clamp: true,
-          color: "#333",
-          font: { size: 12, weight: "bold" },
+          color: "#fff",
+          font: { size: 12, weight: "normal" },
           formatter: v => v === 0 ? "" : (valueType === "percent" ? v + "%" : v)
         }
       },
