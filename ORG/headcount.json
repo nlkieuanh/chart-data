@@ -1,4 +1,5 @@
 {
+  "chartType": "line",
   "periods": [
     "Jan",
     "Feb",
