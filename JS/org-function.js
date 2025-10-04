@@ -236,8 +236,8 @@ function chartCreateStackedBarChart(ctx, data, mode, valueType) {
                 }
               }
               return label;
-            },
-          }
+            }
+          },
       indexAxis: "y",
       scales: {
         x: {
