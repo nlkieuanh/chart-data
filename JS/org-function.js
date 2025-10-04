@@ -287,7 +287,7 @@ function orgCreateGeoCompanyBlock(container, company, valueType) {
 }
 
 function chartRenderGeoBarChart(canvas, company, valueType, opts) {
-  if (window[canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
+  if (window[canvas.id + "Chart"]) window[canvas.id + "Chart"].destroy();
   const labels = Object.keys(company.values || {});
   const arr = labels.map(l => company.values[l] || 0);
   const values = valueType === "percent" ? chartToPercent(arr) : arr;
