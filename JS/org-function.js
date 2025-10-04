@@ -222,7 +222,6 @@ function chartCreateStackedBarChart(ctx, data, mode, valueType) {
         // FIX: Add callback to show '%' in tooltip label when in percent mode
         tooltip: {
           callbacks: {
-           
             label: function(context) {
               let label = context.dataset.label || '';
               if (label) {
@@ -287,7 +286,9 @@ function orgCreateGeoCompanyBlock(container, company, valueType) {
 }
 
 function chartRenderGeoBarChart(canvas, company, valueType, opts) {
-  if (window[canvas.id + "Chart"]) window[canvas.id + "Chart"].destroy();
+  // FIX: Use 'canvas.id' instead of 'ctx.canvas.id' to avoid ReferenceError
+  if (window[canvas.id + "Chart"]) window[canvas.id + "Chart"].destroy(); 
+  
   const labels = Object.keys(company.values || {});
   const arr = labels.map(l => company.values[l] || 0);
   const values = valueType === "percent" ? chartToPercent(arr) : arr;
@@ -300,8 +301,7 @@ function chartRenderGeoBarChart(canvas, company, valueType, opts) {
     // Add 20% safety margin to the max value and round up
     maxScaleValue = Math.ceil(maxDataValue * 1.2); 
   }
-  // *******************************************************
-
+  
   window[canvas.id + "Chart"] = new Chart(canvas.getContext("2d"), {
     type: "bar",
     data: {
@@ -349,7 +349,7 @@ function chartRenderGeoBarChart(canvas, company, valueType, opts) {
 function chartCreateGeoCharts(grid, data, mode, valueType) {
   grid.replaceChildren(); // Clear previous charts
   
-  // 1. CREATE LIST OF COMPANIES TO RENDER (This array was defined outside the function in your previous file)
+  // 1. CREATE LIST OF COMPANIES TO RENDER
   let companiesToRender = [];
   if (mode === "direct") {
     companiesToRender = [data.yourCompany, ...data.competitors];
@@ -362,26 +362,11 @@ function chartCreateGeoCharts(grid, data, mode, valueType) {
     companiesToRender = [data.yourCompany, avg].filter(c => c);
   }
 
-  // 2. RENDER ALL CHARTS (This is the block that causes the initial race condition for the first chart)
+  // 2. RENDER ALL CHARTS (Your Company is rendered first)
   companiesToRender.forEach(company => {
       orgCreateGeoCompanyBlock(grid, company, valueType);
   });
-  
-  // 3. FIX TIMING/RENDER ISSUE: Force re-render of the first chart ("Your Company")
-  // This logic MUST be inside the function so it runs on every mode/value switch.
-  if (companiesToRender.length > 0 && companiesToRender[0].name === data.yourCompany.name) {
-      setTimeout(() => {
-          const companyToFix = companiesToRender[0];
-          const canvasId = `geo-${companyToFix.name.replace(/\s+/g, "-")}`;
-          const canvas = grid.querySelector(`#${canvasId}`);
 
-          if (canvas) {
-              // Call the render function again to redraw the chart
-              // Use BAR_THICKNESS: 20 as defined in orgCreateGeoCompanyBlock
-              chartRenderGeoBarChart(canvas, companyToFix, valueType, { BAR_THICKNESS: 20 });
-          }
-      }, 50); // Small delay fixes the race condition on every call
-  }
 }
 
 // --------------------------------------------------
@@ -466,14 +451,12 @@ function orgInitChart(wrapper, dataUrl) {
       // Add event listeners
       if (btnDirect) btnDirect.addEventListener("click", () => {
         currentMode = "direct";
-        // Ensure buttons are active after mode switch
         renderChart();
         setActive(modeBtns, btnDirect); 
       });
 
       if (btnConsolidate) btnConsolidate.addEventListener("click", () => {
         currentMode = "consolidate";
-        // Ensure buttons are active after mode switch
         renderChart();
         setActive(modeBtns, btnConsolidate); 
       });
