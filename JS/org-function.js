@@ -269,6 +269,14 @@ function chartRenderGeoBarChart(canvas, company, valueType, opts) {
   const arr = labels.map(l => company.values[l] || 0);
   const values = valueType === "percent" ? chartToPercent(arr) : arr;
   const BAR_THICKNESS = (opts && opts.BAR_THICKNESS) || 20;
+  
+  // ************  LOGIC MAX SCALE ************
+  let maxScaleValue = undefined;
+  if (valueType !== "percent" && values.length > 0) {
+    const maxDataValue = Math.max(...values);
+    maxScaleValue = Math.ceil(maxDataValue * 1.2); 
+  }
+  // *******************************************************
 
   window[canvas.id + "Chart"] = new Chart(canvas.getContext("2d"), {
     type: "bar",
@@ -290,10 +298,10 @@ function chartRenderGeoBarChart(canvas, company, valueType, opts) {
       plugins: {
         legend: { display: false },
         datalabels: {
-          anchor: "start",
+          anchor: "end",
           align: "right",
           clamp: true,
-          color: "#fff",
+          color: "#333",
           font: { size: 12, weight: "normal" },
           formatter: v => v === 0 ? "" : (valueType === "percent" ? v + "%" : v)
         }
