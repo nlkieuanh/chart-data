@@ -221,16 +221,16 @@ function chartCreateStackedBarChart(ctx, data, mode, valueType) {
         legend: { position: "bottom" },
         tooltip: {
           callbacks: {
-            // Tùy chỉnh chỉ phần label (bao gồm giá trị)
+           
             label: function(context) {
               let label = context.dataset.label || '';
               if (label) {
                 label += ': ';
               }
-              // Định dạng giá trị (Value)
+             
               if (context.parsed.x !== null) {
                 label += context.parsed.x;
-                // Chỉ thêm % nếu đang ở chế độ percent
+                
                 if (valueType === 'percent') {
                   label += '%';
                 }
@@ -356,6 +356,20 @@ function chartCreateGeoCharts(grid, data, mode, valueType) {
        avg = orgComputeConsolidatedGeo(data);
     }
     if(avg) orgCreateGeoCompanyBlock(grid, avg, valueType);
+  }
+}
+
+if (companiesToRender[0] && companiesToRender[0].name === data.yourCompany.name) {
+      setTimeout(() => {
+          const companyToFix = companiesToRender[0];
+          const canvasId = `geo-${companyToFix.name.replace(/\s+/g, "-")}`;
+          const canvas = grid.querySelector(`#${canvasId}`);
+
+          if (canvas) {
+             
+              chartRenderGeoBarChart(canvas, companyToFix, valueType, { BAR_THICKNESS: 20 });
+          }
+      }, 50); 
   }
 }
 
