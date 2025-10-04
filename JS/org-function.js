@@ -357,7 +357,7 @@ function chartCreateGeoCharts(grid, data, mode, valueType) {
     }
     if(avg) orgCreateGeoCompanyBlock(grid, avg, valueType);
   }
-}
+//}
 
 if (companiesToRender[0] && companiesToRender[0].name === data.yourCompany.name) {
       setTimeout(() => {
