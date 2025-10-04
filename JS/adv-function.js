@@ -3,7 +3,10 @@
 // Prefix: adv
 // ==================================================
 
-// ========== Utility Functions (ALWAYS KEEP THESE FIRST) ==========
+// --------------------------------------------------
+// ## UTILITY FUNCTIONS
+// --------------------------------------------------
+
 function advHexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -12,13 +15,15 @@ function advHexToRgba(hex, alpha) {
 }
 
 function advToPercent(arr) {
+  if (!Array.isArray(arr)) return [];
   const total = arr.reduce((sum, v) => sum + v, 0);
   return arr.map(v => total > 0 ? +(v / total * 100).toFixed(1) : 0);
 }
 
 function advComputeConsolidated(data) {
   if (!data.competitors || !data.competitors.length) return null;
-  const length = data.competitors[0].values.length;
+  // Assume values are arrays for non-angles charts
+  const length = data.competitors[0].values.length; 
   const avg = Array(length).fill(0);
   data.competitors.forEach(c => c.values.forEach((v, i) => { avg[i] += v; }));
   return {
@@ -28,7 +33,10 @@ function advComputeConsolidated(data) {
   };
 }
 
-// ========== Init ==========
+// --------------------------------------------------
+// ## CORE INITIALIZATION
+// --------------------------------------------------
+
 function advInitChart(wrapper, dataUrl) {
   const rootCanvas = wrapper.querySelector("canvas");
 
@@ -45,84 +53,35 @@ function advInitChart(wrapper, dataUrl) {
         if (activeBtn) activeBtn.classList.add("is-active");
       }
 
-      // ===== ANGLES SPECIAL =====
+      const chartTypeMap = {
+        "line": advCreateLineChart,
+        "bar-grouped": advCreateGroupedBarChart,
+        "bar-stacked": advCreateStackedBarChart,
+        "bar-horizontal": advCreateHorizontalBarChart,
+        "angles": advCreateAnglesCharts // Special case for multi-chart grid
+      };
+
+      if (!chartTypeMap[type]) {
+          console.error(`Error: Invalid chartType "${type}" in JSON data.`);
+          return;
+      }
+      
+      const createChartFunction = chartTypeMap[type];
+
+      // Handle Angles Chart (multi-chart grid, special initialization)
       if (type === "angles") {
-        // tạo container grid thay cho canvas gốc
-        const grid = document.createElement("div");
-        grid.className = "chart-grid";
-        rootCanvas.replaceWith(grid);
-
-        function renderCharts() {
-          grid.replaceChildren();
-
-          if (currentMode === "direct") {
-            // Your company + all competitors
-            advCreateCompanyBlock(grid, data.yourCompany, currentValue);
-            data.competitors.forEach(c => advCreateCompanyBlock(grid, c, currentValue));
-          } else {
-            // Your company + Average competitors
-            advCreateCompanyBlock(grid, data.yourCompany, currentValue);
-
-            const angleSet = new Set();
-            data.competitors.forEach(c => Object.keys(c.anglesOffers).forEach(a => angleSet.add(a)));
-            const avg = {};
-            Array.from(angleSet).forEach(l => {
-              let sum = 0, count = 0;
-              data.competitors.forEach(c => {
-                if (c.anglesOffers[l] !== undefined) { sum += c.anglesOffers[l]; count++; }
-              });
-              avg[l] = count > 0 ? +(sum / count).toFixed(1) : 0;
-            });
-
-            advCreateCompanyBlock(grid, {
-              name: "Average Competitors",
-              color: "#999999",
-              anglesOffers: avg
-            }, currentValue);
-          }
-        }
-
-        // buttons
-        const btnDirect = wrapper.closest(".chart-canvas").querySelector(".btn-direct");
-        const btnConsolidate = wrapper.closest(".chart-canvas").querySelector(".btn-consolidate");
-        const btnAbs = wrapper.closest(".chart-canvas").querySelector(".btn-absolute");
-        const btnPct = wrapper.closest(".chart-canvas").querySelector(".btn-percent");
-
-        const modeBtns = [btnDirect, btnConsolidate];
-        const valueBtns = [btnAbs, btnPct];
-
-        if (btnDirect) btnDirect.addEventListener("click", () => {
-          currentMode = "direct"; currentValue = "absolute"; renderCharts();
-          setActive(modeBtns, btnDirect); setActive(valueBtns, btnAbs);
-        });
-        if (btnConsolidate) btnConsolidate.addEventListener("click", () => {
-          currentMode = "consolidate"; currentValue = "absolute"; renderCharts();
-          setActive(modeBtns, btnConsolidate); setActive(valueBtns, btnAbs);
-        });
-        if (btnAbs) btnAbs.addEventListener("click", () => {
-          currentValue = "absolute"; renderCharts(); setActive(valueBtns, btnAbs);
-        });
-        if (btnPct) btnPct.addEventListener("click", () => {
-          currentValue = "percent"; renderCharts(); setActive(valueBtns, btnPct);
-        });
-
-        renderCharts();
-        setActive(modeBtns, btnDirect);
-        setActive(valueBtns, btnAbs);
-        return;
+          advInitAngles(wrapper, rootCanvas, data, currentMode, currentValue);
+          return;
       }
 
-      // ===== OTHER CHART TYPES =====
+      // Handle Standard Charts (single canvas)
       data.consolidatedCompetitors = advComputeConsolidated(data);
 
       function renderChart() {
         const ctx = rootCanvas.getContext("2d");
-        if (type === "line")          advCreateLineChart(ctx, data, currentMode, currentValue);
-        if (type === "bar-grouped")   advCreateGroupedBarChart(ctx, data, currentMode, currentValue);
-        if (type === "bar-stacked")   advCreateStackedBarChart(ctx, data, currentMode, currentValue);
-        if (type === "bar-horizontal")advCreateHorizontalBarChart(ctx, data, currentMode, currentValue);
+        createChartFunction(ctx, data, currentMode, currentValue);
       }
-
+      
       const btnDirect = wrapper.querySelector(".btn-direct");
       const btnConsolidate = wrapper.querySelector(".btn-consolidate");
       const btnAbs = wrapper.querySelector(".btn-absolute");
@@ -153,7 +112,91 @@ function advInitChart(wrapper, dataUrl) {
     .catch(err => console.error("Error loading adv data:", err));
 }
 
-// ========== Angles Company Block (Dynamic Height, per-company keys only) ==========
+// --------------------------------------------------
+// ## ANGLES CHART LOGIC (Special Multi-Chart)
+// --------------------------------------------------
+
+function advComputeConsolidatedAngles(data) {
+    if (!data.competitors || !data.competitors.length) return null;
+    const angleSet = new Set();
+    data.competitors.forEach(c => Object.keys(c.anglesOffers).forEach(a => angleSet.add(a)));
+    
+    const avg = {};
+    Array.from(angleSet).forEach(angle => {
+        let sum = 0, count = 0;
+        data.competitors.forEach(c => {
+            if (c.anglesOffers[angle] !== undefined) { sum += c.anglesOffers[angle]; count++; }
+        });
+        avg[angle] = count > 0 ? +(sum / count).toFixed(1) : 0;
+    });
+
+    return {
+        name: "Average Competitors",
+        color: "#999999",
+        anglesOffers: avg
+    };
+}
+
+function advInitAngles(wrapper, rootCanvas, data, initialMode, initialValue) {
+    let currentMode = initialMode;
+    let currentValue = initialValue;
+    
+    // Create grid container to replace the single canvas
+    const grid = document.createElement("div");
+    grid.className = "chart-grid";
+    rootCanvas.replaceWith(grid);
+
+    // Active state helper (copied from advInitChart)
+    function setActive(group, activeBtn) {
+        group.forEach(b => { if (b) b.classList.remove("is-active"); });
+        if (activeBtn) activeBtn.classList.add("is-active");
+    }
+
+    function renderCharts() {
+        grid.replaceChildren();
+
+        if (currentMode === "direct") {
+            // Your company + all competitors
+            advCreateCompanyBlock(grid, data.yourCompany, currentValue);
+            data.competitors.forEach(c => advCreateCompanyBlock(grid, c, currentValue));
+        } else {
+            // Your company + Average competitors
+            advCreateCompanyBlock(grid, data.yourCompany, currentValue);
+            const avgCompetitors = advComputeConsolidatedAngles(data);
+            advCreateCompanyBlock(grid, avgCompetitors, currentValue);
+        }
+    }
+
+    // Buttons (must search relative to the wrapper)
+    const btnDirect = wrapper.querySelector(".btn-direct");
+    const btnConsolidate = wrapper.querySelector(".btn-consolidate");
+    const btnAbs = wrapper.querySelector(".btn-absolute");
+    const btnPct = wrapper.querySelector(".btn-percent");
+
+    const modeBtns = [btnDirect, btnConsolidate];
+    const valueBtns = [btnAbs, btnPct];
+
+    if (btnDirect) btnDirect.addEventListener("click", () => {
+        currentMode = "direct"; currentValue = "absolute"; renderCharts();
+        setActive(modeBtns, btnDirect); setActive(valueBtns, btnAbs);
+    });
+    if (btnConsolidate) btnConsolidate.addEventListener("click", () => {
+        currentMode = "consolidate"; currentValue = "absolute"; renderCharts();
+        setActive(modeBtns, btnConsolidate); setActive(valueBtns, btnAbs);
+    });
+    if (btnAbs) btnAbs.addEventListener("click", () => {
+        currentValue = "absolute"; renderCharts(); setActive(valueBtns, btnAbs);
+    });
+    if (btnPct) btnPct.addEventListener("click", () => {
+        currentValue = "percent"; renderCharts(); setActive(valueBtns, btnPct);
+    });
+
+    renderCharts();
+    setActive(modeBtns, btnDirect);
+    setActive(valueBtns, btnAbs);
+}
+
+
 function advCreateCompanyBlock(container, company, valueType) {
   const block = document.createElement("div");
   block.classList.add("company-chart");
@@ -162,24 +205,20 @@ function advCreateCompanyBlock(container, company, valueType) {
   title.innerText = company.name;
   block.appendChild(title);
 
-  // Inner wraps canvas → set height here to avoid flex/resize loop
   const inner = document.createElement("div");
   inner.classList.add("chart-inner");
 
-  // Dynamic height = nAngles * (bar + gap) + padding
   const BAR_THICKNESS = 20;
   const BAR_GAP = 20;
   const anglesCount = Object.keys(company.anglesOffers).length;
-  const calcHeight = Math.max(anglesCount * (BAR_THICKNESS + BAR_GAP), 120); // min 120px
-  inner.style.setProperty("--chart-h", calcHeight + "px");  // for CSS (if needed)
-  inner.style.height = calcHeight + "px";                   // explicit height
+  const calcHeight = Math.max(anglesCount * (BAR_THICKNESS + BAR_GAP), 120); 
+  inner.style.height = calcHeight + "px";                   
 
   const canvas = document.createElement("canvas");
   canvas.id = "chart-" + company.name.replace(/\s+/g, "-");
-  // Canvas fill 100% of inner; also set attribute so Chart.js uses exact pixel size
   canvas.style.width = "100%";
   canvas.style.height = "100%";
-  canvas.setAttribute("height", calcHeight); // ensure internal pixel height
+  canvas.setAttribute("height", calcHeight); 
   inner.appendChild(canvas);
   block.appendChild(inner);
   container.appendChild(block);
@@ -187,14 +226,22 @@ function advCreateCompanyBlock(container, company, valueType) {
   advRenderAnglesChart(canvas, company, valueType, { BAR_THICKNESS });
 }
 
-// ========== Angles Chart ==========
 function advRenderAnglesChart(canvas, company, valueType, opts) {
+  // FIX: Use 'canvas.id' to destroy previous chart instance (resolves ctx not defined error)
   if (window[canvas.id + "Chart"]) window[canvas.id + "Chart"].destroy();
 
-  const labels = Object.keys(company.anglesOffers);              // only this company's keys
+  const labels = Object.keys(company.anglesOffers);              
   const arr = labels.map(l => company.anglesOffers[l] || 0);
   const values = valueType === "percent" ? advToPercent(arr) : arr;
   const BAR_THICKNESS = (opts && opts.BAR_THICKNESS) || 20;
+  
+  // FIX: Calculate Max Scale for X-axis to ensure margin for Data Labels
+  let maxScaleValue = undefined;
+  if (valueType !== "percent" && values.length > 0) {
+    const maxDataValue = Math.max(...values);
+    // Add 20% safety margin to the max value and round up
+    maxScaleValue = Math.ceil(maxDataValue * 1.2); 
+  }
 
   window[canvas.id + "Chart"] = new Chart(canvas.getContext("2d"), {
     type: "bar",
@@ -211,15 +258,14 @@ function advRenderAnglesChart(canvas, company, valueType, opts) {
       }]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false, // respect parent height
+      responsive: true, maintainAspectRatio: false, 
       resizeDelay: 50,
       plugins: {
         legend: { display: false },
         datalabels: {
           anchor: "end",
           align: "right",
-          clamp: true,           // ✅ không cho text vượt ra ngoài chart area
+          clamp: true,           
           clip: false,
           color: "#333",
           font: { size: 12, weight: "bold" },
@@ -234,7 +280,8 @@ function advRenderAnglesChart(canvas, company, valueType, opts) {
           beginAtZero: true,
           grid: { display: false },
           ticks: { display: false },
-          max: valueType === "percent" ? 100 : undefined
+          // Use calculated maxScaleValue for margin
+          max: valueType === "percent" ? 100 : maxScaleValue
         }
       }
     },
@@ -242,44 +289,23 @@ function advRenderAnglesChart(canvas, company, valueType, opts) {
   });
 }
 
-// ========== Line Chart ==========
+// --------------------------------------------------
+// ## STANDARD CHART CREATION
+// --------------------------------------------------
+
+const getChartValues = (arr, valueType) => Array.isArray(arr) ? (valueType === "percent" ? advToPercent(arr) : arr) : [];
+
 function advCreateLineChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
-  const getValues = arr => valueType === "percent" ? advToPercent(arr) : arr;
-
+  const getValues = (arr) => getChartValues(arr, valueType);
+  // ... (datasets logic is correct and kept clean)
   const datasets = [];
   if (mode === "direct") {
-    datasets.push({
-      label: data.yourCompany.name,
-      data: getValues(data.yourCompany.values),
-      borderColor: data.yourCompany.color,
-      backgroundColor: advHexToRgba(data.yourCompany.color, 0.3),
-      fill: false, tension: 0.3
-    });
-    data.competitors.forEach(c => {
-      datasets.push({
-        label: c.name,
-        data: getValues(c.values),
-        borderColor: c.color,
-        backgroundColor: advHexToRgba(c.color, 0.3),
-        borderDash: [4, 2],
-        fill: false, tension: 0.3
-      });
-    });
+    datasets.push({ label: data.yourCompany.name, data: getValues(data.yourCompany.values), borderColor: data.yourCompany.color, backgroundColor: advHexToRgba(data.yourCompany.color, 0.3), fill: false, tension: 0.3 });
+    data.competitors.forEach(c => { datasets.push({ label: c.name, data: getValues(c.values), borderColor: c.color, backgroundColor: advHexToRgba(c.color, 0.3), borderDash: [4, 2], fill: false, tension: 0.3 }); });
   } else {
-    datasets.push({
-      label: data.yourCompany.name,
-      data: getValues(data.yourCompany.values),
-      borderColor: data.yourCompany.color,
-      backgroundColor: advHexToRgba(data.yourCompany.color, 0.3),
-      fill: false, tension: 0.3
-    });
-    datasets.push({
-      label: data.consolidatedCompetitors.name,
-      data: getValues(data.consolidatedCompetitors.values),
-      borderColor: data.consolidatedCompetitors.color,
-      borderDash: [6, 3], fill: false, tension: 0.3
-    });
+    datasets.push({ label: data.yourCompany.name, data: getValues(data.yourCompany.values), borderColor: data.yourCompany.color, backgroundColor: advHexToRgba(data.yourCompany.color, 0.3), fill: false, tension: 0.3 });
+    datasets.push({ label: data.consolidatedCompetitors.name, data: getValues(data.consolidatedCompetitors.values), borderColor: data.consolidatedCompetitors.color, borderDash: [6, 3], fill: false, tension: 0.3 });
   }
 
   window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
@@ -299,11 +325,10 @@ function advCreateLineChart(ctx, data, mode, valueType) {
   });
 }
 
-// ========== Grouped Bar Chart ==========
 function advCreateGroupedBarChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
-  const getValues = arr => valueType === "percent" ? advToPercent(arr) : arr;
-
+  const getValues = (arr) => getChartValues(arr, valueType);
+  // ... (datasets logic is correct and kept clean)
   const datasets = [];
   if (mode === "direct") {
     datasets.push({ label: data.yourCompany.name, data: getValues(data.yourCompany.values), backgroundColor: data.yourCompany.color });
@@ -330,10 +355,9 @@ function advCreateGroupedBarChart(ctx, data, mode, valueType) {
   });
 }
 
-// ========== Stacked Bar Chart ==========
 function advCreateStackedBarChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
-  const getValues = arr => valueType === "percent" ? advToPercent(arr) : arr;
+  const getValues = (arr) => getChartValues(arr, valueType);
 
   const labels = mode === "direct"
     ? [data.yourCompany.name, ...data.competitors.map(c => c.name)]
@@ -352,7 +376,27 @@ function advCreateStackedBarChart(ctx, data, mode, valueType) {
     data: { labels, datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: "bottom" } },
+      plugins: {
+        legend: { position: "bottom" },
+        // FIX: Add callback to show '%' in tooltip label when in percent mode
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              let label = context.dataset.label || '';
+              if (label) {
+                label += ': ';
+              }
+              if (context.parsed.x !== null) {
+                label += context.parsed.x;
+                if (valueType === 'percent') {
+                  label += '%';
+                }
+              }
+              return label;
+            }
+          }
+        }
+     },
       indexAxis: "y",
       scales: {
         x: {
@@ -366,11 +410,11 @@ function advCreateStackedBarChart(ctx, data, mode, valueType) {
   });
 }
 
-// ========== Horizontal Bar Chart ==========
 function advCreateHorizontalBarChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
   const getValues = arr => valueType === "percent" ? advToPercent(arr) : arr;
-
+  
+  // ... (datasets logic is correct and kept clean)
   const datasets = [];
   if (mode === "direct") {
     datasets.push({ label: data.yourCompany.name, data: getValues(data.yourCompany.values), backgroundColor: data.yourCompany.color });
