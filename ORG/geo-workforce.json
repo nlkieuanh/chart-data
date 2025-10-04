@@ -1,4 +1,5 @@
 {
+  "chartType": "geo",
   "periods": ["United States", "United Kingdom", "India", "Vietnam", "Germany", "France", "Japan", "Canada", "Brazil", "China"],
   "yourCompany": {
     "name": "Your Company",
