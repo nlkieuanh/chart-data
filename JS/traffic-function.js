@@ -6,18 +6,12 @@
 
 // ========== Color Mapping & Constants (ENSURE CONSISTENCY ACROSS DASHBOARD) ==========
 
-const DASHBOARD_YOUR_COMPANY_COLOR = "#A3E4D7";  // Soft Mint/Teal
-const DASHBOARD_AVERAGE_COLOR = "#CCCCCC";       // Light Grey
-const DASHBOARD_PERIODS_COLOR_POOL = ["#85C1E9", "#A9DFBF", "#F9E79F", "#F5B7B1", "#D7BDE2", "#ABB2B9"];
+const DASHBOARD_YOUR_COMPANY_COLOR = "#7d83ff";  // Primary
+const DASHBOARD_AVERAGE_COLOR = "#577590";       // Light Grey
+const DASHBOARD_PERIODS_COLOR_POOL = ["#F94144", "#F3722C", "#F8961E", "#F9844A", "#F9C74F", "#90BE6D"];
 
 const COMPETITOR_PASTEL_POOL = [
-  "#FFDAB9", // Peach
-  "#B3E5C7", // Light Green
-  "#C1E1D9", // Light Cyan
-  "#F7A8A3", // Salmon Pink
-  "#E6C9D8", // Lavender
-  "#F9E79F", // Light Yellow
-  "#ABB2B9"  // Soft Blue-Grey
+  "#F94144", "#F3722C", "#F8961E", "#F9844A", "#F9C74F", "#90BE6D", "#43AA8B", "#4D908E"
 ];
 
 const COMPETITOR_COLOR_MAP = {}; 
