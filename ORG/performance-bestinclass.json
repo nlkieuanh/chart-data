@@ -1,5 +1,5 @@
 {
-  "chartType": "line",
+  "chartType": "bar",
   "periods": ["Influencer", "Paid Search", "SEO", "Affiliate"],
   "yourCompany": {
     "name": "Your Company",
