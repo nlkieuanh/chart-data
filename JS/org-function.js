@@ -217,7 +217,27 @@ function chartCreateStackedBarChart(ctx, data, mode, valueType) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { position: "bottom" } },
+      plugins: {
+        legend: { position: "bottom" },
+        tooltip: {
+          callbacks: {
+            // Tùy chỉnh chỉ phần label (bao gồm giá trị)
+            label: function(context) {
+              let label = context.dataset.label || '';
+              if (label) {
+                label += ': ';
+              }
+              // Định dạng giá trị (Value)
+              if (context.parsed.x !== null) {
+                label += context.parsed.x;
+                // Chỉ thêm % nếu đang ở chế độ percent
+                if (valueType === 'percent') {
+                  label += '%';
+                }
+              }
+              return label;
+            },
+          }
       indexAxis: "y",
       scales: {
         x: {
