@@ -1,0 +1,31 @@
+{
+  "chartType": "bar",
+  "barMode": "stacked-horizontal",
+  "periods": ["Desktop", "Mobile Web"],
+  "yourCompany": {
+    "name": "eu.hismileteeth.com",
+    "values": [629, 9371] 
+  },
+  "competitors": [
+    {
+      "name": "Competitor A (Youtube - Desktop Heavy)",
+      "values": [7760, 2240] 
+    },
+    {
+      "name": "Competitor B (Balanced Traffic)",
+      "values": [5500, 4500] 
+    },
+    {
+      "name": "Competitor C (Retail App - Mobile Heavy)",
+      "values": [1500, 8500] 
+    },
+    {
+      "name": "Competitor D (Moderate Desktop)",
+      "values": [6500, 3500] 
+    },
+    {
+      "name": "Competitor E (Ultra Mobile)",
+      "values": [500, 9500] 
+    }
+  ]
+}
