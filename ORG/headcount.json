@@ -105,10 +105,5 @@
         189
       ]
     }
-  ],
-  "consolidatedCompetitors": {
-    "name": "Average Competitors",
-    "color": "#0099c6",
-    "values": [70, 77.5, 85, 92.5, 90, 93, 98, 105, 125, 125, 140, 155]
-  }
+  ]
 }
