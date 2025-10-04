@@ -8,10 +8,10 @@
 
 const DASHBOARD_YOUR_COMPANY_COLOR = "#7d83ff";  // Primary
 const DASHBOARD_AVERAGE_COLOR = "#577590";       // Light Grey
-const DASHBOARD_PERIODS_COLOR_POOL = ["#F94144", "#F3722C", "#F8961E", "#F9844A", "#F9C74F", "#90BE6D"];
+const DASHBOARD_PERIODS_COLOR_POOL = ["#8ecae6", "#219ebc", "#4361ee", "#fec601", "#fdca40", "#d56062", "fecef1"];
 
 const COMPETITOR_PASTEL_POOL = [
-  "#4D908E", "#43AA8B", "#90BE6D", "#F9C74F", "#F9844A", "#8ecae6", "#ce6a85", "#F94144"
+  "#4D908E", "#0471a6", "#90BE6D", "#F9C74F", "#F9844A", "#8ecae6", "#ce6a85", "#F94144"
 ];
 
 const COMPETITOR_COLOR_MAP = {}; 
