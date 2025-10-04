@@ -349,7 +349,7 @@ function chartRenderGeoBarChart(canvas, company, valueType, opts) {
 function chartCreateGeoCharts(grid, data, mode, valueType) {
   grid.replaceChildren(); // Clear previous charts
   
-  // 1. CREATE LIST OF COMPANIES TO RENDER
+  // 1. CREATE LIST OF COMPANIES TO RENDER (This array was defined outside the function in your previous file)
   let companiesToRender = [];
   if (mode === "direct") {
     companiesToRender = [data.yourCompany, ...data.competitors];
@@ -362,13 +362,13 @@ function chartCreateGeoCharts(grid, data, mode, valueType) {
     companiesToRender = [data.yourCompany, avg].filter(c => c);
   }
 
-  // 2. RENDER ALL CHARTS
+  // 2. RENDER ALL CHARTS (This is the block that causes the initial race condition for the first chart)
   companiesToRender.forEach(company => {
       orgCreateGeoCompanyBlock(grid, company, valueType);
   });
   
   // 3. FIX TIMING/RENDER ISSUE: Force re-render of the first chart ("Your Company")
-  // This resolves the common race condition where the first dynamically created canvas fails to initialize.
+  // This logic MUST be inside the function so it runs on every mode/value switch.
   if (companiesToRender.length > 0 && companiesToRender[0].name === data.yourCompany.name) {
       setTimeout(() => {
           const companyToFix = companiesToRender[0];
@@ -377,9 +377,10 @@ function chartCreateGeoCharts(grid, data, mode, valueType) {
 
           if (canvas) {
               // Call the render function again to redraw the chart
+              // Use BAR_THICKNESS: 20 as defined in orgCreateGeoCompanyBlock
               chartRenderGeoBarChart(canvas, companyToFix, valueType, { BAR_THICKNESS: 20 });
           }
-      }, 50); // Small delay to push it to the next event loop
+      }, 50); // Small delay fixes the race condition on every call
   }
 }
 
