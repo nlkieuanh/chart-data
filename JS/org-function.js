@@ -219,6 +219,7 @@ function chartCreateStackedBarChart(ctx, data, mode, valueType) {
       maintainAspectRatio: false,
       plugins: {
         legend: { position: "bottom" },
+        // FIX: Add callback to show '%' in tooltip label when in percent mode
         tooltip: {
           callbacks: {
            
@@ -286,16 +287,17 @@ function orgCreateGeoCompanyBlock(container, company, valueType) {
 }
 
 function chartRenderGeoBarChart(canvas, company, valueType, opts) {
-  if (window[canvas.id + "Chart"]) window[canvas.id + "Chart"].destroy();
+  if (window[canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
   const labels = Object.keys(company.values || {});
   const arr = labels.map(l => company.values[l] || 0);
   const values = valueType === "percent" ? chartToPercent(arr) : arr;
   const BAR_THICKNESS = (opts && opts.BAR_THICKNESS) || 20;
   
-  // ************  LOGIC MAX SCALE ************
+  // FIX: Logic to calculate Max Scale for X-axis to ensure margin for Data Labels
   let maxScaleValue = undefined;
   if (valueType !== "percent" && values.length > 0) {
     const maxDataValue = Math.max(...values);
+    // Add 20% safety margin to the max value and round up
     maxScaleValue = Math.ceil(maxDataValue * 1.2); 
   }
   // *******************************************************
@@ -335,7 +337,8 @@ function chartRenderGeoBarChart(canvas, company, valueType, opts) {
           beginAtZero: true,
           grid: { display: false },
           ticks: { display: false },
-          max: valueType === "percent" ? 100 : maxScaleValue
+          // Use calculated maxScaleValue for margin
+          max: valueType === "percent" ? 100 : maxScaleValue 
         }
       }
     },
@@ -345,31 +348,38 @@ function chartRenderGeoBarChart(canvas, company, valueType, opts) {
 
 function chartCreateGeoCharts(grid, data, mode, valueType) {
   grid.replaceChildren(); // Clear previous charts
+  
+  // 1. CREATE LIST OF COMPANIES TO RENDER
+  let companiesToRender = [];
   if (mode === "direct") {
-    orgCreateGeoCompanyBlock(grid, data.yourCompany, valueType);
-    data.competitors.forEach(c => orgCreateGeoCompanyBlock(grid, c, valueType));
+    companiesToRender = [data.yourCompany, ...data.competitors];
   } else {
-    orgCreateGeoCompanyBlock(grid, data.yourCompany, valueType);
-    // Compute consolidated only if it hasn't been done or if it's not present in data
+    // Consolidated Mode
     let avg = data.consolidatedCompetitors;
-    if (!avg || !avg.values || Array.isArray(avg.values)) { // Re-compute if missing or wrong type
+    if (!avg || !avg.values || Array.isArray(avg.values)) { 
        avg = orgComputeConsolidatedGeo(data);
     }
-    if(avg) orgCreateGeoCompanyBlock(grid, avg, valueType);
+    companiesToRender = [data.yourCompany, avg].filter(c => c);
   }
-//}
 
-if (companiesToRender[0] && companiesToRender[0].name === data.yourCompany.name) {
+  // 2. RENDER ALL CHARTS
+  companiesToRender.forEach(company => {
+      orgCreateGeoCompanyBlock(grid, company, valueType);
+  });
+  
+  // 3. FIX TIMING/RENDER ISSUE: Force re-render of the first chart ("Your Company")
+  // This resolves the common race condition where the first dynamically created canvas fails to initialize.
+  if (companiesToRender.length > 0 && companiesToRender[0].name === data.yourCompany.name) {
       setTimeout(() => {
           const companyToFix = companiesToRender[0];
           const canvasId = `geo-${companyToFix.name.replace(/\s+/g, "-")}`;
           const canvas = grid.querySelector(`#${canvasId}`);
 
           if (canvas) {
-             
+              // Call the render function again to redraw the chart
               chartRenderGeoBarChart(canvas, companyToFix, valueType, { BAR_THICKNESS: 20 });
           }
-      }, 50); 
+      }, 50); // Small delay to push it to the next event loop
   }
 }
 
@@ -455,19 +465,16 @@ function orgInitChart(wrapper, dataUrl) {
       // Add event listeners
       if (btnDirect) btnDirect.addEventListener("click", () => {
         currentMode = "direct";
-        // Reset valueType to absolute when switching modes for consistency unless explicitly clicked
-        // currentValue = "absolute"; 
+        // Ensure buttons are active after mode switch
         renderChart();
         setActive(modeBtns, btnDirect); 
-        // setActive(valueBtns, btnAbs);
       });
 
       if (btnConsolidate) btnConsolidate.addEventListener("click", () => {
         currentMode = "consolidate";
-        // currentValue = "absolute"; 
+        // Ensure buttons are active after mode switch
         renderChart();
         setActive(modeBtns, btnConsolidate); 
-        // setActive(valueBtns, btnAbs);
       });
 
       if (btnAbs) btnAbs.addEventListener("click", () => {
@@ -475,7 +482,7 @@ function orgInitChart(wrapper, dataUrl) {
       });
 
       if (btnPct) btnPct.addEventListener("click", () => {
-        // Percent view is only valid for array values (non-Geo)
+        // Warning if using Percent mode on Geo data (which is usually absolute counts)
         if (isGeo && currentValue !== "percent") {
              console.warn("Percent view is not typically used for Geo workforce/absolute counts.");
         }
