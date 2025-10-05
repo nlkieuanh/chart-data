@@ -39,11 +39,9 @@ function trafficToPercent(arr) {
   return arr.map(v => total > 0 ? +(v / total * 100).toFixed(1) : 0);
 }
 
-// Compute consolidated competitor data depending on chart type
 function trafficComputeConsolidated(data) {
   if (!data.competitors || !data.competitors.length) return null;
 
-  // Donut charts: average share by source
   if (data.chartType === "donut") {
     const acc = {};
     const n = data.competitors.length;
@@ -61,7 +59,6 @@ function trafficComputeConsolidated(data) {
     return { name: "Consolidated Competitors", sources: consolidatedSources };
   }
 
-  // Geo-bar charts: sum traffic share by country
   if (data.chartType === "geo") {
     const aggregated = {};
     data.competitors.forEach(c => {
@@ -77,7 +74,6 @@ function trafficComputeConsolidated(data) {
     return { name: "Consolidated Competitors", top_countries: consolidatedCountries };
   }
 
-  // Line/Bar charts: average values across competitors
   const firstWithValues = (data.competitors || []).find(c => Array.isArray(c.values));
   if (!firstWithValues) return null;
 
@@ -135,7 +131,6 @@ function trafficInitChart(wrapper, dataUrl) {
           return;
         }
 
-        // Line/Bar charts
         rootCanvas.style.display = "";
         const geoGrid = wrapper.querySelector(".country-grid");
         if (geoGrid) geoGrid.remove();
@@ -206,7 +201,7 @@ function trafficInitChart(wrapper, dataUrl) {
     .catch(err => console.error("Error loading traffic data:", err));
 }
 
-// ========== Donut Charts (multi) ==========
+// ========== Donut Charts ==========
 
 function trafficCreateDonutChart(div, entityData) {
   const canvas = document.createElement("canvas");
@@ -333,7 +328,7 @@ function trafficCreateStackedHorizontalBarChart(ctx, data, mode, valueType) {
   });
 }
 
-// ========== Geo Bar (Multi Horizontal Bar Charts) ==========
+// ========== Geo Bar (Modified with barHeight=20, gap=20) ==========
 
 function trafficCreateCountryBarChart(div, companyData) {
   const canvas = document.createElement("canvas");
@@ -344,7 +339,9 @@ function trafficCreateCountryBarChart(div, companyData) {
 
   const barColor = companyData.color || getConsistentCompetitorColor(companyData.name);
 
-  const targetHeight = labels.length * (20 + 20) + 40;
+  const barHeight = 20;
+  const gap = 20;
+  const targetHeight = labels.length * (barHeight + gap);
   div.style.height = targetHeight + "px";
 
   new Chart(canvas.getContext("2d"), {
@@ -355,8 +352,7 @@ function trafficCreateCountryBarChart(div, companyData) {
         label: companyData.name,
         data: values,
         backgroundColor: barColor,
-        barThickness: 20,      // fixed bar thickness
-        categoryPercentage: 0.5
+        barThickness: barHeight
       }]
     },
     options: {
@@ -367,7 +363,15 @@ function trafficCreateCountryBarChart(div, companyData) {
         legend: { display: false },
         title: { display: true, text: companyData.name, font: { size: 14, weight: "bold" } }
       },
-      scales: { x: { beginAtZero: true, ticks: { callback: v => v + "%" } } }
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { callback: v => v + "%" }
+        },
+        y: {
+          ticks: { autoSkip: false }
+        }
+      }
     }
   });
 }
@@ -400,4 +404,5 @@ function trafficRenderCountryCharts(wrapper, data, mode) {
     });
   }
 }
+
 
