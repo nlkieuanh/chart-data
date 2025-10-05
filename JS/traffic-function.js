@@ -348,7 +348,7 @@ function trafficCreateCountryBarChart(div, companyData) {
       datasets: [{
         data: datasetValues,
         backgroundColor: datasetLabels.map(l => l === "" ? "rgba(0,0,0,0)" : barColor),
-        barThickness: 20,
+        barThickness: 10,
         barPercentage: 1.0, 
         categoryPercentage: 1.0
       }]
