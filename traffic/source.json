@@ -1,37 +1,57 @@
 {
-  "chartType": "bar",
-  "barMode": "grouped",
-  "periods": ["Direct", "Organic", "Paid", "Referral", "Social"],
+  "chartType": "donut",
   "yourCompany": {
-    "name": "Your Company",
-    "color": "#3366cc",
-    "values": [35, 40, 15, 5, 5]
+    "name": "eu.hismileteeth.com",
+    "sources": [
+      {"source": "Youtube", "share": 59.61},
+      {"source": "Facebook", "share": 31.84},
+      {"source": "Instagram", "share": 8.08},
+      {"source": "Other", "share": 0.47}
+    ]
   },
   "competitors": [
     {
-      "name": "Competitor A",
-      "color": "#dc3912",
-      "values": [30, 45, 15, 5, 5]
+      "name": "Competitor A (X-twitter Heavy)",
+      "sources": [
+        {"source": "X-twitter", "share": 31.68},
+        {"source": "Facebook", "share": 28.29},
+        {"source": "Reddit", "share": 9.34},
+        {"source": "Instagram", "share": 8.14},
+        {"source": "Other", "share": 22.55}
+      ]
     },
     {
-      "name": "Competitor B",
-      "color": "#ff9900",
-      "values": [25, 50, 10, 10, 5]
+      "name": "Competitor B (TikTok Focus)",
+      "sources": [
+        {"source": "Facebook", "share": 60.00},
+        {"source": "TikTok", "share": 20.00},
+        {"source": "Instagram", "share": 15.00},
+        {"source": "Other", "share": 5.00}
+      ]
     },
     {
-      "name": "Competitor C",
-      "color": "#109618",
-      "values": [20, 55, 10, 10, 5]
+      "name": "Competitor C (Pinterest Focus)",
+      "sources": [
+        {"source": "Pinterest", "share": 70.00},
+        {"source": "Facebook", "share": 20.00},
+        {"source": "Other", "share": 10.00}
+      ]
     },
     {
-      "name": "Competitor D",
-      "color": "#990099",
-      "values": [40, 35, 15, 5, 5]
+      "name": "Competitor D (LinkedIn Focus)",
+      "sources": [
+        {"source": "LinkedIn", "share": 45.00},
+        {"source": "Facebook", "share": 35.00},
+        {"source": "Other", "share": 20.00}
+      ]
     },
     {
-      "name": "Competitor E",
-      "color": "#0099c6",
-      "values": [28, 42, 20, 5, 5]
+      "name": "Competitor E (Youtube/X-twitter Mix)",
+      "sources": [
+        {"source": "Youtube", "share": 50.00},
+        {"source": "X-twitter", "share": 30.00},
+        {"source": "Other", "share": 20.00}
+      ]
     }
   ]
 }
