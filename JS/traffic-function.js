@@ -45,17 +45,14 @@ function trafficComputeConsolidated(data) {
   if (data.chartType === "donut") {
     const acc = {};
     const n = data.competitors.length;
-
     data.competitors.forEach(comp => {
       (comp.sources || []).forEach(s => {
         acc[s.source] = (acc[s.source] || 0) + Number(s.share || 0);
       });
     });
-
     const consolidatedSources = Object.keys(acc)
       .map(source => ({ source, share: +(acc[source] / n).toFixed(2) }))
       .sort((a, b) => b.share - a.share);
-
     return { name: "Consolidated Competitors", sources: consolidatedSources };
   }
 
@@ -66,11 +63,9 @@ function trafficComputeConsolidated(data) {
         aggregated[tc.country] = (aggregated[tc.country] || 0) + Number(tc.traffic_share || 0);
       });
     });
-
     const consolidatedCountries = Object.keys(aggregated)
       .map(country => ({ country, traffic_share: +aggregated[country].toFixed(2) }))
       .sort((a, b) => b.traffic_share - a.traffic_share);
-
     return { name: "Consolidated Competitors", top_countries: consolidatedCountries };
   }
 
@@ -173,22 +168,19 @@ function trafficInitChart(wrapper, dataUrl) {
         if (btnPct) btnPct.addEventListener("click", () => {
           currentValue = "percent"; renderChart(); setActive(valueBtns, btnPct);
         });
-
         setActive(modeBtns, btnDirect);
         setActive(valueBtns, btnAbs);
       } else {
         if (btnDirect) {
           btnDirect.addEventListener("click", () => {
-            currentMode = "direct";
-            renderChart();
+            currentMode = "direct"; renderChart();
             setActive(modeBtns, btnDirect);
           });
           setActive(modeBtns, btnDirect);
         }
         if (btnConsolidate) {
           btnConsolidate.addEventListener("click", () => {
-            currentMode = "consolidate";
-            renderChart();
+            currentMode = "consolidate"; renderChart();
             setActive(modeBtns, btnConsolidate);
           });
         }
@@ -328,7 +320,7 @@ function trafficCreateStackedHorizontalBarChart(ctx, data, mode, valueType) {
   });
 }
 
-// ========== Geo Bar (Modified with barHeight=20, gap=20) ==========
+// ========== Geo Bar (Spacer Technique) ==========
 
 function trafficCreateCountryBarChart(div, companyData) {
   const canvas = document.createElement("canvas");
@@ -339,20 +331,24 @@ function trafficCreateCountryBarChart(div, companyData) {
 
   const barColor = companyData.color || getConsistentCompetitorColor(companyData.name);
 
-  const barHeight = 20;
-  const gap = 20;
-  const targetHeight = labels.length * (barHeight + gap);
-  div.style.height = targetHeight + "px";
+  // interleave: country -> bar, spacer -> gap
+  const datasetLabels = [];
+  const datasetValues = [];
+  labels.forEach((label, i) => {
+    datasetLabels.push(label);
+    datasetValues.push(values[i]);
+    datasetLabels.push("");      // spacer label
+    datasetValues.push(null);    // spacer value
+  });
 
   new Chart(canvas.getContext("2d"), {
     type: "bar",
     data: {
-      labels: labels,
+      labels: datasetLabels,
       datasets: [{
-        label: companyData.name,
-        data: values,
-        backgroundColor: barColor,
-        barThickness: barHeight
+        data: datasetValues,
+        backgroundColor: datasetLabels.map(l => l === "" ? "rgba(0,0,0,0)" : barColor),
+        barThickness: 20
       }]
     },
     options: {
@@ -361,7 +357,12 @@ function trafficCreateCountryBarChart(div, companyData) {
       indexAxis: "y",
       plugins: {
         legend: { display: false },
-        title: { display: true, text: companyData.name, font: { size: 14, weight: "bold" } }
+        title: { display: true, text: companyData.name, font: { size: 14, weight: "bold" } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.raw !== null ? ctx.raw + "%" : ""
+          }
+        }
       },
       scales: {
         x: {
@@ -369,7 +370,12 @@ function trafficCreateCountryBarChart(div, companyData) {
           ticks: { callback: v => v + "%" }
         },
         y: {
-          ticks: { autoSkip: false }
+          ticks: {
+            autoSkip: false,
+            callback: function(value, index) {
+              return datasetLabels[index] || "";
+            }
+          }
         }
       }
     }
@@ -404,5 +410,4 @@ function trafficRenderCountryCharts(wrapper, data, mode) {
     });
   }
 }
-
 
