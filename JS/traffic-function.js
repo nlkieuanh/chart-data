@@ -1,7 +1,7 @@
 // ==================================================
 // Traffic Chart Functions
 // Prefix: traffic
-// Library: Chart.js + ECharts (geo only)
+// Library: Chart.js + ChartDataLabels
 // ==================================================
 
 // ========== Color Mapping & Constants ==========
@@ -66,7 +66,7 @@ function trafficComputeConsolidated(data) {
     const consolidatedCountries = Object.keys(aggregated)
       .map(country => ({ country, traffic_share: +aggregated[country].toFixed(2) }))
       .sort((a, b) => b.traffic_share - a.traffic_share);
-    return { name: "Consolidated Competitors", top_countries: consolidatedCountries };
+    return { name: "Consolidated Competitors", top_countries: consolidatedCountries, color: DASHBOARD_AVERAGE_COLOR };
   }
 
   const firstWithValues = (data.competitors || []).find(c => Array.isArray(c.values));
@@ -320,68 +320,112 @@ function trafficCreateStackedHorizontalBarChart(ctx, data, mode, valueType) {
   });
 }
 
-// ========== Geo Bar (Spacer Technique) ==========
+// ==================================================
+// Geo Chart Functions (Geo Bar)
+// ==================================================
 
-function trafficCreateCountryBarChart(div, companyData) {
-  const canvas = document.createElement("canvas");
-  div.appendChild(canvas);
+function trafficGetChartHeight(companyData) {
+    const BAR_THICKNESS = 20; 
+    const SPACER_HEIGHT = 20; 
+    
+    const N = (companyData.top_countries || []).length;
+    if (N === 0) return "120px";
+    
+    const calculatedHeight = N * (BAR_THICKNESS + SPACER_HEIGHT) + 40; 
+    
+    return Math.max(calculatedHeight, 200) + "px";
+}
 
-  const labels = companyData.top_countries.map(c => c.country);
-  const values = companyData.top_countries.map(c => c.traffic_share);
+function trafficRenderGeoBarChart(canvas, company, opts) {
+  if (window[canvas.id + "Chart"]) window[canvas.id + "Chart"].destroy(); 
+  
+  const labels = company.top_countries.map(c => c.country);
+  const values = company.top_countries.map(c => c.traffic_share);
+  
+  const BAR_THICKNESS = (opts && opts.BAR_THICKNESS) || 20;
+  const barColor = company.color;
 
-  const barColor = companyData.color || getConsistentCompetitorColor(companyData.name);
-
-  // === START FIX: Bỏ kỹ thuật Spacer và sử dụng barPercentage/categoryPercentage ===
-  const datasetLabels = labels;
-  const datasetValues = values;
-  // === END FIX ===
-
-  new Chart(canvas.getContext("2d"), {
+  window[canvas.id + "Chart"] = new Chart(canvas.getContext("2d"), {
     type: "bar",
     data: {
-      labels: datasetLabels,
+      labels,
       datasets: [{
-        data: datasetValues,
-        backgroundColor: barColor, // Đã bỏ logic màu cho spacer
-        barThickness: 20
+        label: company.name,
+        data: values,
+        backgroundColor: barColor,
+        barThickness: BAR_THICKNESS,
+        maxBarThickness: BAR_THICKNESS,
+        categoryPercentage: 1.0,
+        barPercentage: 0.9
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      indexAxis: "y",
       plugins: {
         legend: { display: false },
-        title: { display: true, text: companyData.name, font: { size: 14, weight: "bold" } },
+        datalabels: { 
+          anchor: "end",
+          align: "right",
+          clamp: true,
+          color: "#333",
+          font: { size: 12, weight: "normal" },
+          formatter: v => v === 0 ? "" : v + "%"
+        },
+        title: { display: true, text: company.name, font: { size: 14, weight: "bold" } }, 
         tooltip: {
-          callbacks: {
-            // Đã bỏ logic kiểm tra null vì không còn spacer
-            label: ctx => ctx.raw !== null ? ctx.raw + "%" : ""
-          }
+            callbacks: {
+                label: ctx => ctx.raw !== null ? ctx.raw + "%" : ""
+            }
         }
       },
+      indexAxis: "y",
       scales: {
+        y: { 
+          grid: { display: false }, 
+          ticks: { color: "#0f172a", font: { size: 12 } },
+          categoryPercentage: 0.8,
+          barPercentage: 0.8
+        },
         x: {
           beginAtZero: true,
-          ticks: { callback: v => v + "%" }
-        },
-        y: {
-          // === START FIX: Thêm thuộc tính để tạo khoảng cách giữa các thanh ===
-          categoryPercentage: 0.8, // Khoảng 20% không gian danh mục sẽ là khoảng trống
-          barPercentage: 0.8,      // Bar chiếm 80% không gian danh mục đã cấp
-          // === END FIX ===
-          ticks: {
-            autoSkip: false,
-            // Sửa callback để sử dụng labels gốc
-            callback: function(value, index) {
-              return datasetLabels[index] || "";
-            }
-          }
+          grid: { display: false },
+          ticks: { callback: v => v + "%" },
+          max: 100 
         }
       }
-    }
+    },
+    plugins: [ChartDataLabels] 
   });
 }
+
+function trafficCreateGeoCompanyBlock(container, company) {
+  const card = document.createElement("div");
+  card.classList.add("country-card"); 
+
+  const title = document.createElement("h4");
+  title.innerText = company.name;
+  card.appendChild(title);
+
+  const inner = document.createElement("div");
+  inner.classList.add("chart-inner");
+
+  const requiredHeight = trafficGetChartHeight(company);
+  inner.style.height = requiredHeight;
+  card.style.height = requiredHeight; 
+
+  const canvas = document.createElement("canvas");
+  canvas.id = "geo-" + company.name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9-]/g, ""); 
+  canvas.style.width = "100%";
+  canvas.style.height = "100%";
+  canvas.setAttribute("height", requiredHeight); 
+  inner.appendChild(canvas);
+  card.appendChild(inner);
+  container.appendChild(card);
+
+  trafficRenderGeoBarChart(canvas, company, { BAR_THICKNESS: 20 });
+}
+
 
 function trafficRenderCountryCharts(wrapper, data, mode) {
   const rootCanvas = wrapper.querySelector("canvas");
@@ -394,20 +438,15 @@ function trafficRenderCountryCharts(wrapper, data, mode) {
     grid.className = "country-grid";
     wrapper.appendChild(grid);
   }
-
+  
+  let companiesToRender = [];
   if (mode === "direct") {
-    [data.yourCompany, ...data.competitors].forEach(company => {
-      const card = document.createElement("div");
-      card.className = "country-card";
-      grid.appendChild(card);
-      trafficCreateCountryBarChart(card, company);
-    });
+    companiesToRender = [data.yourCompany, ...data.competitors];
   } else {
-    [data.yourCompany, data.consolidated].forEach(company => {
-      const card = document.createElement("div");
-      card.className = "country-card";
-      grid.appendChild(card);
-      trafficCreateCountryBarChart(card, company);
-    });
+    companiesToRender = [data.yourCompany, data.consolidated].filter(c => c);
   }
+
+  companiesToRender.forEach(company => {
+      trafficCreateGeoCompanyBlock(grid, company);
+  });
 }
