@@ -24,7 +24,6 @@ function getConsistentCompetitorColor(name) {
     return color;
 }
 
-
 // ========== Utility Functions ==========
 
 function trafficHexToRgba(hex, alpha) {
@@ -120,10 +119,11 @@ function trafficInitChart(wrapper, dataUrl) {
       }
 
       function renderChart() {
+        if (!rootCanvas) return;
         const ctx = rootCanvas.getContext("2d");
 
         if (type === "donut") {
-          if (rootCanvas && rootCanvas.style.display === "none") rootCanvas.style.display = "";
+          rootCanvas.style.display = "";
           const geoGrid = wrapper.querySelector(".country-grid");
           if (geoGrid) geoGrid.remove();
 
@@ -136,10 +136,15 @@ function trafficInitChart(wrapper, dataUrl) {
         }
 
         if (type === "geo") {
-          if (rootCanvas) rootCanvas.style.display = "none";
+          rootCanvas.style.display = "none";
           trafficRenderCountryCharts(wrapper, data, currentMode);
           return;
         }
+
+        // Line/Bar charts
+        rootCanvas.style.display = "";
+        const geoGrid = wrapper.querySelector(".country-grid");
+        if (geoGrid) geoGrid.remove();
 
         if (type === "line") {
           trafficCreateLineChart(ctx, data, currentMode, currentValue);
@@ -330,18 +335,9 @@ function trafficCreateCountryBarChart(div, companyData) {
       indexAxis: "y",
       plugins: {
         legend: { display: false },
-        title: {
-          display: true,
-          text: companyData.name,
-          font: { size: 14, weight: "bold" }
-        }
+        title: { display: true, text: companyData.name, font: { size: 14, weight: "bold" } }
       },
-      scales: {
-        x: {
-          beginAtZero: true,
-          ticks: { callback: v => v + "%" }
-        }
-      }
+      scales: { x: { beginAtZero: true, ticks: { callback: v => v + "%" } } }
     }
   });
 }
@@ -374,4 +370,3 @@ function trafficRenderCountryCharts(wrapper, data, mode) {
     });
   }
 }
-
