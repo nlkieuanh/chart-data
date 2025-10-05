@@ -29,21 +29,16 @@ function getConsistentCompetitorColor(name) {
     return color;
 }
 
-
-
-// --------------------------------------------------
-// ## UTILITY FUNCTIONS
-// --------------------------------------------------
+// ========== Utility Functions ==========
 
 function trafficHexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 function trafficToPercent(arr) {
-  if (!Array.isArray(arr)) return [];
   const total = arr.reduce((sum, v) => sum + v, 0);
   return arr.map(v => total > 0 ? +(v / total * 100).toFixed(1) : 0);
 }
@@ -51,11 +46,13 @@ function trafficToPercent(arr) {
 function trafficComputeConsolidated(data) {
   if (!data.competitors || !data.competitors.length) return null;
 
-  if (data.chartType === "multiple-donut") {
+  if (data.chartType === "donut") {
+    // LOGIC CHO DONUT CHART: Gom nhóm và chuẩn hóa tổng thị trường
     const allEntities = [data.yourCompany, ...data.competitors];
-    const totalEntities = allEntities.length;
+    const totalEntities = allEntities.length; // 6 entities
     const aggregatedSources = {};
     
+    // 1. Gom nhóm và cộng tổng share
     allEntities.forEach(entity => {
       entity.sources.forEach(s => {
         if (aggregatedSources[s.source]) {
@@ -66,6 +63,8 @@ function trafficComputeConsolidated(data) {
       });
     });
 
+    // 2. Chuẩn hóa về 100% của thị trường gộp
+    // Tổng share tuyệt đối là 100% * TotalEntities
     const totalPossibleShare = 100 * totalEntities;
 
     const normalizedSources = Object.keys(aggregatedSources).map(source => {
@@ -83,37 +82,139 @@ function trafficComputeConsolidated(data) {
     };
   }
 
-  const length = data.periods?.length || (Array.isArray(data.competitors[0].values) ? data.competitors[0].values.length : 0);
+  // LOGIC CHO LINE/BAR CHARTS: Tính trung bình của các đối thủ (cho các periods đồng nhất)
+  const length = data.competitors[0].values.length;
   const avg = Array(length).fill(0);
-  let competitorCount = 0;
-
-  data.competitors.forEach(c => {
-    if (Array.isArray(c.values) && c.values.length === length) {
-      c.values.forEach((v, i) => { avg[i] += v; });
-      competitorCount++;
-    }
-  });
-
-  if (competitorCount === 0) return null;
+  data.competitors.forEach(c => c.values.forEach((v, i) => { avg[i] += v; }));
 
   return {
     name: "Average Competitors",
-    color: DASHBOARD_AVERAGE_COLOR, 
-    values: avg.map(v => +(v / competitorCount).toFixed(1))
+    color: DASHBOARD_AVERAGE_COLOR,
+    values: avg.map(v => +(v / data.competitors.length).toFixed(1))
   };
 }
 
+// ========== Initialization & Main Logic (trafficInitChart) ==========
 
-// --------------------------------------------------
-// ## MULTIPLE DONUT CHART RENDERERS
-// --------------------------------------------------
+function trafficInitChart(wrapper, dataUrl) {
+  const rootCanvas = wrapper.querySelector("canvas");
 
-function trafficRenderDonutChart(ctx, entityData) {
+  fetch(dataUrl)
+    .then(res => res.json())
+    .then(data => {
+      const type = data.chartType; 
+      const barMode = data.barMode || "grouped"; 
+      let currentMode = "direct";
+      let currentValue = "absolute";
+      let currentEntity = 'yourCompany'; // State cho Donut Chart
+
+      // 1. Tính toán Consolidated data (Chức năng đa năng cho cả bar/line và donut)
+      data.consolidated = trafficComputeConsolidated(data);
+
+      // 2. Ánh xạ màu nhất quán cho các chủ thể
+      if (data.yourCompany) data.yourCompany.color = DASHBOARD_YOUR_COMPANY_COLOR;
+      if (data.competitors) {
+          data.competitors.forEach(c => {
+            c.color = getConsistentCompetitorColor(c.name); 
+          });
+      }
+
+      // Active state helper
+      function setActive(group, activeBtn) {
+        group.forEach(b => { if (b) b.classList.remove("is-active"); });
+        if (activeBtn) activeBtn.classList.add("is-active");
+      }
+
+      function renderChart() {
+        const ctx = rootCanvas.getContext("2d");
+
+        if (type === "donut") {
+            let activeEntityData = data.yourCompany;
+            if (currentEntity === 'consolidated' && data.consolidated) {
+                activeEntityData = data.consolidated;
+            }
+            trafficCreateDonutChart(ctx, activeEntityData);
+            return; 
+        }
+
+        // --- Logic cho Line/Bar Charts ---
+        if (type === "line") {
+          trafficCreateLineChart(ctx, data, currentMode, currentValue);
+        }
+
+        if (type === "bar" && barMode === "grouped") {
+          trafficCreateGroupedBarChart(ctx, data, currentMode, currentValue);
+        }
+
+        if (type === "bar" && barMode === "stacked-horizontal") {
+          trafficCreateStackedHorizontalBarChart(ctx, data, currentMode, currentValue);
+        }
+      }
+
+      const btnDirect = wrapper.querySelector(".btn-direct");
+      const btnConsolidate = wrapper.querySelector(".btn-consolidate");
+      const btnAbs = wrapper.querySelector(".btn-absolute");
+      const btnPct = wrapper.querySelector(".btn-percent");
+
+      const modeBtns = [btnDirect, btnConsolidate];
+      const valueBtns = [btnAbs, btnPct];
+      
+      if (type !== "donut") {
+          // Logic cho Line/Bar Charts
+          if (btnDirect) btnDirect.addEventListener("click", () => {
+            currentMode = "direct"; currentValue = "absolute"; renderChart();
+            setActive(modeBtns, btnDirect); setActive(valueBtns, btnAbs);
+          });
+          if (btnConsolidate) btnConsolidate.addEventListener("click", () => {
+            currentMode = "consolidate"; currentValue = "absolute"; renderChart();
+            setActive(modeBtns, btnConsolidate); setActive(valueBtns, btnAbs);
+          });
+          if (btnAbs) btnAbs.addEventListener("click", () => {
+            currentValue = "absolute"; renderChart(); setActive(valueBtns, btnAbs);
+          });
+          if (btnPct) btnPct.addEventListener("click", () => {
+            currentValue = "percent"; renderChart(); setActive(valueBtns, btnPct);
+          });
+
+          setActive(modeBtns, btnDirect);
+          setActive(valueBtns, btnAbs);
+      } else {
+          // Logic cho Donut Chart
+          if (btnDirect) {
+              btnDirect.addEventListener("click", () => {
+                  currentEntity = "yourCompany"; 
+                  renderChart();
+                  setActive(modeBtns, btnDirect);
+              });
+              setActive(modeBtns, btnDirect); // Set initial state
+          }
+          if (btnConsolidate) {
+              btnConsolidate.addEventListener("click", () => {
+                  if (data.consolidated) {
+                      currentEntity = "consolidated"; 
+                      renderChart();
+                      setActive(modeBtns, btnConsolidate);
+                  }
+              });
+          }
+          // Ẩn nút Value vì Donut luôn hiển thị phần trăm
+          if (btnAbs) btnAbs.style.display = 'none';
+          if (btnPct) btnPct.style.display = 'none';
+      }
+
+      renderChart();
+    })
+    .catch(err => console.error("Error loading traffic data:", err));
+}
+
+// ========== Donut Chart (NEW) ==========
+function trafficCreateDonutChart(ctx, entityData) {
     if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
 
     const labels = entityData.sources.map(s => s.source);
     const data = entityData.sources.map(s => s.share);
     
+    // Use DONUT_COLOR_POOL for segments
     const backgroundColors = labels.map((_, i) => DONUT_COLOR_POOL[i % DONUT_COLOR_POOL.length]);
 
     window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
@@ -128,210 +229,29 @@ function trafficRenderDonutChart(ctx, entityData) {
           }]
         },
         options: {
-            responsive: true, 
-            maintainAspectRatio: true, 
+            responsive: true, maintainAspectRatio: false,
             plugins: {
-                legend: { position: "bottom" },
-                title: { display: true, text: entityData.name, font: { size: 14 } } 
+                legend: { position: "right" },
+                title: { display: true, text: entityData.name + ' - Social Traffic Distribution' }
             }
         }
     });
 }
 
-function trafficCreateDonutCompanyBlock(container, entity) {
-    const block = document.createElement("div");
-    block.classList.add("donut-chart-container"); 
-    
-    const title = document.createElement("h4");
-    title.innerText = entity.name;
-    block.appendChild(title);
 
-    const canvas = document.createElement("canvas");
-    const canvasId = "donut-" + entity.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, '');
-    canvas.id = canvasId;
-    
-    block.appendChild(canvas);
-    container.appendChild(block);
-
-    trafficRenderDonutChart(canvas.getContext("2d"), entity);
-}
-
-function trafficCreateMultipleDonuts(grid, data, mode) {
-    grid.innerHTML = ''; 
-    
-    let entitiesToRender = [];
-    if (mode === "direct") {
-        entitiesToRender = [data.yourCompany, ...data.competitors];
-    } else {
-        entitiesToRender = [data.yourCompany, data.consolidated].filter(c => c);
-    }
-    
-    entitiesToRender.forEach(entity => {
-        if (entity.sources) { 
-            trafficCreateDonutCompanyBlock(grid, entity);
-        }
-    });
-}
-
-// --------------------------------------------------
-// ## INIT & MAIN LOGIC
-// --------------------------------------------------
-
-function trafficInitChart(wrapper, dataUrl) {
-  // --- ADD INLINE STYLING FOR FLEXBOX LAYOUT ---
-  const style = document.createElement('style');
-  style.textContent = `
-    .chart-canvas {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 20px; 
-        justify-content: flex-start;
-        align-items: flex-start;
-    }
-    .donut-chart-container {
-        flex: 0 0 300px; 
-        max-width: 100%;
-        min-height: 350px;
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-    }
-    .donut-chart-container h4 {
-        margin-bottom: 10px;
-        font-size: 1em;
-        font-weight: 600;
-        color: #333;
-    }
-  `;
-  wrapper.appendChild(style);
-  // --------------------------------------------------
-
-  const rootCanvas = wrapper.querySelector("canvas");
-  const ctx = rootCanvas ? rootCanvas.getContext("2d") : null;
-  
-  const chartTypeMap = {
-    "line": trafficCreateLineChart,
-    "bar": trafficCreateGroupedBarChart, 
-    "stacked-horizontal": trafficCreateStackedHorizontalBarChart, 
-    "multiple-donut": trafficCreateMultipleDonuts 
-  };
-
-  fetch(dataUrl)
-    .then(res => res.json())
-    .then(data => {
-      const chartType = data.chartType; 
-      const barMode = data.barMode || "grouped"; 
-      let currentMode = "direct";
-      let currentValue = "absolute";
-      
-      const isMultipleDonut = chartType === "multiple-donut";
-      
-      if (!chartType || !chartTypeMap[chartType]) {
-        console.error(`Error: chartType "${chartType}" is missing or invalid in JSON data.`);
-        return;
-      }
-      
-      const createChartFunction = chartTypeMap[chartType];
-      
-      // 1. Apply Color Mapping 
-      if (data.yourCompany) data.yourCompany.color = DASHBOARD_YOUR_COMPANY_COLOR;
-      if (data.competitors) {
-          data.competitors.forEach(c => {
-            c.color = getConsistentCompetitorColor(c.name); 
-          });
-      }
-      
-      // 2. Compute Consolidated Data
-      data.consolidated = trafficComputeConsolidated(data);
-
-      // Active state helper
-      function setActive(group, activeBtn) {
-        group.forEach(b => { if (b) b.classList.remove("is-active"); });
-        if (activeBtn) activeBtn.classList.add("is-active");
-      }
-
-      function renderChart() {
-        if (isMultipleDonut) {
-           if (rootCanvas) rootCanvas.style.display = 'none'; 
-           createChartFunction(wrapper, data, currentMode);
-        } else if (ctx) {
-           if (rootCanvas) rootCanvas.style.display = 'block'; 
-           createChartFunction(ctx, data, currentMode, currentValue);
-        }
-      }
-
-      // Buttons setup
-      const btnDirect = wrapper.querySelector(".btn-direct");
-      const btnConsolidate = wrapper.querySelector(".btn-consolidate");
-      const btnAbs = wrapper.querySelector(".btn-absolute");
-      const btnPct = wrapper.querySelector(".btn-percent");
-
-      const modeBtns = [btnDirect, btnConsolidate];
-      const valueBtns = [btnAbs, btnPct];
-
-      // Add event listeners
-      if (btnDirect) btnDirect.addEventListener("click", () => {
-        currentMode = "direct";
-        renderChart();
-        setActive(modeBtns, btnDirect); 
-      });
-
-      if (btnConsolidate) btnConsolidate.addEventListener("click", () => {
-        currentMode = "consolidate";
-        renderChart();
-        setActive(modeBtns, btnConsolidate); 
-      });
-
-      if (btnAbs) btnAbs.addEventListener("click", () => {
-        if (isMultipleDonut) return; 
-        currentValue = "absolute"; renderChart(); setActive(valueBtns, btnAbs);
-      });
-
-      if (btnPct) btnPct.addEventListener("click", () => {
-        if (isMultipleDonut) return; 
-        currentValue = "percent"; renderChart(); setActive(valueBtns, btnPct);
-      });
-
-      // Hide/Show buttons
-      if (isMultipleDonut) {
-         if (btnAbs) btnAbs.style.display = 'none';
-         if (btnPct) btnPct.style.display = 'none';
-      } else {
-         if (btnAbs) btnAbs.style.display = 'block';
-         if (btnPct) btnPct.style.display = 'block';
-      }
-      
-
-      // Initial render and button states
-      renderChart();
-      setActive(modeBtns, btnDirect);
-      setActive(valueBtns, btnAbs);
-    })
-    .catch(err => console.error("Error loading traffic data:", err));
-}
-
-// --------------------------------------------------
-// ## CHART CREATION FUNCTIONS (LINE, BAR)
-// --------------------------------------------------
-
-const getChartValues = (arr, valueType) => Array.isArray(arr) ? (valueType === "percent" ? trafficToPercent(arr) : arr) : [];
-
+// ========== Line Chart ==========
 function trafficCreateLineChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
+  const getValues = arr => valueType === "percent" ? trafficToPercent(arr) : arr;
 
-  let datasets = [];
-  const getValues = (arr) => getChartValues(arr, valueType);
-
-  datasets.push({
-    label: data.yourCompany.name,
-    data: getValues(data.yourCompany.values),
-    borderColor: data.yourCompany.color,
-    fill: false, tension: 0.3
-  });
-
+  const datasets = [];
   if (mode === "direct") {
+    datasets.push({
+      label: data.yourCompany.name,
+      data: getValues(data.yourCompany.values),
+      borderColor: data.yourCompany.color,
+      fill: false, tension: 0.3
+    });
     data.competitors.forEach(c => {
       datasets.push({
         label: c.name,
@@ -341,7 +261,14 @@ function trafficCreateLineChart(ctx, data, mode, valueType) {
         fill: false, tension: 0.3
       });
     });
-  } else if (data.consolidated) {
+  } else {
+    datasets.push({
+      label: data.yourCompany.name,
+      data: getValues(data.yourCompany.values),
+      borderColor: data.yourCompany.color,
+      fill: false, tension: 0.3
+    });
+    // Sử dụng data.consolidated cho Line/Bar charts
     datasets.push({
       label: data.consolidated.name,
       data: getValues(data.consolidated.values),
@@ -367,16 +294,18 @@ function trafficCreateLineChart(ctx, data, mode, valueType) {
   });
 }
 
+// ========== Grouped Bar Chart ==========
 function trafficCreateGroupedBarChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
-  const getValues = (arr) => getChartValues(arr, valueType);
+  const getValues = arr => valueType === "percent" ? trafficToPercent(arr) : arr;
 
   const datasets = [];
-  datasets.push({ label: data.yourCompany.name, data: getValues(data.yourCompany.values), backgroundColor: data.yourCompany.color });
-  
   if (mode === "direct") {
+    datasets.push({ label: data.yourCompany.name, data: getValues(data.yourCompany.values), backgroundColor: data.yourCompany.color });
     data.competitors.forEach(c => datasets.push({ label: c.name, data: getValues(c.values), backgroundColor: c.color }));
-  } else if (data.consolidated) {
+  } else {
+    datasets.push({ label: data.yourCompany.name, data: getValues(data.yourCompany.values), backgroundColor: data.yourCompany.color });
+    // Sử dụng data.consolidated cho Line/Bar charts
     datasets.push({ label: data.consolidated.name, data: getValues(data.consolidated.values), backgroundColor: data.consolidated.color });
   }
 
@@ -397,18 +326,20 @@ function trafficCreateGroupedBarChart(ctx, data, mode, valueType) {
   });
 }
 
+// ========== Stacked Horizontal Bar Chart ==========
 function trafficCreateStackedHorizontalBarChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
-  const getValues = (arr) => getChartValues(arr, valueType);
+  const getValues = arr => valueType === "percent" ? trafficToPercent(arr) : arr;
 
   const labels = mode === "direct"
     ? [data.yourCompany.name, ...data.competitors.map(c => c.name)]
-    : [data.yourCompany.name, data.consolidated?.name || "Average Competitors"];
+    : [data.yourCompany.name, data.consolidated.name];
 
+  // DONUT_COLOR_POOL được tái sử dụng cho tính nhất quán của các kênh (periods)
   const datasets = data.periods.map((p, i) => {
     const vals = mode === "direct"
       ? [getValues(data.yourCompany.values)[i], ...data.competitors.map(c => getValues(c.values)[i])]
-      : [getValues(data.yourCompany.values)[i], getValues(data.consolidated?.values || [])[i]];
+      : [getValues(data.yourCompany.values)[i], getValues(data.consolidated.values)[i]];
     return { label: p, data: vals, backgroundColor: DONUT_COLOR_POOL[i % DONUT_COLOR_POOL.length] };
   });
 
