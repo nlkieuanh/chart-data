@@ -1,69 +1,67 @@
 {
+  "chartType": "geo",
   "yourCompany": {
     "name": "Your Company",
-    "color": "#3366cc",
-    "countries": [
-      { "name": "US", "value": 6000 },
-      { "name": "UK", "value": 3000 },
-      { "name": "Germany", "value": 2000 },
-      { "name": "India", "value": 1500 },
-      { "name": "Japan", "value": 1000 }
+    "top_countries": [
+      { "country": "United States", "traffic_share": 22.5 },
+      { "country": "India", "traffic_share": 15.2 },
+      { "country": "United Kingdom", "traffic_share": 8.7 },
+      { "country": "Brazil", "traffic_share": 6.3 }
     ]
   },
   "competitors": [
     {
       "name": "Competitor A",
-      "color": "#dc3912",
-      "countries": [
-        { "name": "US", "value": 5000 },
-        { "name": "UK", "value": 2500 },
-        { "name": "Germany", "value": 1800 },
-        { "name": "India", "value": 2000 },
-        { "name": "Japan", "value": 1200 }
+      "top_countries": [
+        { "country": "Germany", "traffic_share": 12.4 },
+        { "country": "France", "traffic_share": 9.1 },
+        { "country": "Spain", "traffic_share": 6.8 },
+        { "country": "Italy", "traffic_share": 5.6 },
+        { "country": "United States", "traffic_share": 4.3 }
       ]
     },
     {
       "name": "Competitor B",
-      "color": "#ff9900",
-      "countries": [
-        { "name": "US", "value": 4000 },
-        { "name": "UK", "value": 3000 },
-        { "name": "Germany", "value": 1600 },
-        { "name": "India", "value": 2500 },
-        { "name": "Japan", "value": 1400 }
+      "top_countries": [
+        { "country": "India", "traffic_share": 18.9 },
+        { "country": "Indonesia", "traffic_share": 14.2 },
+        { "country": "Philippines", "traffic_share": 11.5 },
+        { "country": "Thailand", "traffic_share": 7.3 },
+        { "country": "Vietnam", "traffic_share": 5.2 },
+        { "country": "Malaysia", "traffic_share": 3.7 },
+        { "country": "United States", "traffic_share": 2.8 }
       ]
     },
     {
       "name": "Competitor C",
-      "color": "#109618",
-      "countries": [
-        { "name": "US", "value": 5500 },
-        { "name": "UK", "value": 2800 },
-        { "name": "Germany", "value": 2000 },
-        { "name": "India", "value": 1800 },
-        { "name": "Japan", "value": 1100 }
+      "top_countries": [
+        { "country": "Brazil", "traffic_share": 16.3 },
+        { "country": "Argentina", "traffic_share": 12.7 },
+        { "country": "Chile", "traffic_share": 9.8 }
       ]
     },
     {
       "name": "Competitor D",
-      "color": "#990099",
-      "countries": [
-        { "name": "US", "value": 7000 },
-        { "name": "UK", "value": 3200 },
-        { "name": "Germany", "value": 2100 },
-        { "name": "India", "value": 2200 },
-        { "name": "Japan", "value": 1500 }
+      "top_countries": [
+        { "country": "Japan", "traffic_share": 14.6 },
+        { "country": "South Korea", "traffic_share": 12.5 },
+        { "country": "Taiwan", "traffic_share": 10.3 },
+        { "country": "China", "traffic_share": 8.7 },
+        { "country": "Hong Kong", "traffic_share": 6.2 },
+        { "country": "Thailand", "traffic_share": 4.9 }
       ]
     },
     {
       "name": "Competitor E",
-      "color": "#0099c6",
-      "countries": [
-        { "name": "US", "value": 4500 },
-        { "name": "UK", "value": 2600 },
-        { "name": "Germany", "value": 1700 },
-        { "name": "India", "value": 2300 },
-        { "name": "Japan", "value": 1300 }
+      "top_countries": [
+        { "country": "Canada", "traffic_share": 11.4 },
+        { "country": "Mexico", "traffic_share": 9.7 },
+        { "country": "Colombia", "traffic_share": 7.3 },
+        { "country": "Peru", "traffic_share": 5.6 },
+        { "country": "Chile", "traffic_share": 4.8 },
+        { "country": "Argentina", "traffic_share": 3.9 },
+        { "country": "Brazil", "traffic_share": 2.5 },
+        { "country": "United States", "traffic_share": 2.1 }
       ]
     }
   ]
