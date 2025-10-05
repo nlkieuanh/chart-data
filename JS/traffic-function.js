@@ -351,7 +351,10 @@ function trafficCreateCountryBarChart(div, companyData) {
       datasets: [{
         label: companyData.name,
         data: values,
-        backgroundColor: barColor
+        backgroundColor: barColor,
+        barThickness: 20,      // fixed bar thickness
+        categoryPercentage: 1, // ensures space between categories is respected
+        barPercentage: 1  
       }]
     },
     options: {
