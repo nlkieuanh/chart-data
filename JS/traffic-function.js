@@ -13,17 +13,16 @@ const DONUT_COLOR_POOL = [
   "#b2df8a", "#ff7f00", "#fdbf6f", "#fb9a99", "#e31a1c"
 ];
 
-const COMPETITOR_COLOR_MAP = {}; 
-let colorIndex = 0; 
+const COMPETITOR_COLOR_MAP = {};
+let colorIndex = 0;
 
 function getConsistentCompetitorColor(name) {
-    if (COMPETITOR_COLOR_MAP[name]) return COMPETITOR_COLOR_MAP[name];
-    const color = DONUT_COLOR_POOL[colorIndex % DONUT_COLOR_POOL.length]; 
-    COMPETITOR_COLOR_MAP[name] = color;
-    colorIndex++;
-    return color;
+  if (COMPETITOR_COLOR_MAP[name]) return COMPETITOR_COLOR_MAP[name];
+  const color = DONUT_COLOR_POOL[colorIndex % DONUT_COLOR_POOL.length];
+  COMPETITOR_COLOR_MAP[name] = color;
+  colorIndex++;
+  return color;
 }
-
 
 // ========== Utility Functions ==========
 
@@ -66,7 +65,11 @@ function trafficComputeConsolidated(data) {
     const consolidatedCountries = Object.keys(aggregated)
       .map(country => ({ country, traffic_share: +aggregated[country].toFixed(2) }))
       .sort((a, b) => b.traffic_share - a.traffic_share);
-    return { name: "Consolidated Competitors", top_countries: consolidatedCountries, color: DASHBOARD_AVERAGE_COLOR };
+    return {
+      name: "Consolidated Competitors",
+      top_countries: consolidatedCountries,
+      color: DASHBOARD_AVERAGE_COLOR
+    };
   }
 
   const firstWithValues = (data.competitors || []).find(c => Array.isArray(c.values));
@@ -254,17 +257,47 @@ function trafficCreateLineChart(ctx, data, mode, valueType) {
 
   const datasets = [];
   if (mode === "direct") {
-    datasets.push({ label: data.yourCompany.name, data: getValues(data.yourCompany.values), borderColor: data.yourCompany.color, fill: false, tension: 0.3 });
-    data.competitors.forEach(c => datasets.push({ label: c.name, data: getValues(c.values), borderColor: c.color, borderDash: [4, 2], fill: false, tension: 0.3 }));
+    datasets.push({
+      label: data.yourCompany.name,
+      data: getValues(data.yourCompany.values),
+      borderColor: data.yourCompany.color,
+      fill: false,
+      tension: 0.3
+    });
+    data.competitors.forEach(c => datasets.push({
+      label: c.name,
+      data: getValues(c.values),
+      borderColor: c.color,
+      borderDash: [4, 2],
+      fill: false,
+      tension: 0.3
+    }));
   } else {
-    datasets.push({ label: data.yourCompany.name, data: getValues(data.yourCompany.values), borderColor: data.yourCompany.color, fill: false, tension: 0.3 });
-    datasets.push({ label: data.consolidated.name, data: getValues(data.consolidated.values), borderColor: data.consolidated.color, borderDash: [6, 3], fill: false, tension: 0.3 });
+    datasets.push({
+      label: data.yourCompany.name,
+      data: getValues(data.yourCompany.values),
+      borderColor: data.yourCompany.color,
+      fill: false,
+      tension: 0.3
+    });
+    datasets.push({
+      label: data.consolidated.name,
+      data: getValues(data.consolidated.values),
+      borderColor: data.consolidated.color,
+      borderDash: [6, 3],
+      fill: false,
+      tension: 0.3
+    });
   }
 
   window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
     type: "line",
     data: { labels: data.periods, datasets },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom" } }
+    }
   });
 }
 
@@ -276,17 +309,37 @@ function trafficCreateGroupedBarChart(ctx, data, mode, valueType) {
 
   const datasets = [];
   if (mode === "direct") {
-    datasets.push({ label: data.yourCompany.name, data: getValues(data.yourCompany.values), backgroundColor: data.yourCompany.color });
-    data.competitors.forEach(c => datasets.push({ label: c.name, data: getValues(c.values), backgroundColor: c.color }));
+    datasets.push({
+      label: data.yourCompany.name,
+      data: getValues(data.yourCompany.values),
+      backgroundColor: data.yourCompany.color
+    });
+    data.competitors.forEach(c => datasets.push({
+      label: c.name,
+      data: getValues(c.values),
+      backgroundColor: c.color
+    }));
   } else {
-    datasets.push({ label: data.yourCompany.name, data: getValues(data.yourCompany.values), backgroundColor: data.yourCompany.color });
-    datasets.push({ label: data.consolidated.name, data: getValues(data.consolidated.values), backgroundColor: data.consolidated.color });
+    datasets.push({
+      label: data.yourCompany.name,
+      data: getValues(data.yourCompany.values),
+      backgroundColor: data.yourCompany.color
+    });
+    datasets.push({
+      label: data.consolidated.name,
+      data: getValues(data.consolidated.values),
+      backgroundColor: data.consolidated.color
+    });
   }
 
   window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
     type: "bar",
     data: { labels: data.periods, datasets },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom" } }
+    }
   });
 }
 
@@ -325,26 +378,22 @@ function trafficCreateStackedHorizontalBarChart(ctx, data, mode, valueType) {
 // ==================================================
 
 function trafficGetChartHeight(companyData) {
-    const BAR_THICKNESS = 20; 
-    const BAR_GAP = 20; // Use a constant gap/margin similar to bar thickness
-    
-    // N is the number of data points (countries)
-    const N = (companyData.top_countries || []).length;
-    
-    if (N === 0) return "120px";
-    
-    // Calculate required height based on number of bars + space between them + padding
-    const calculatedHeight = N * (BAR_THICKNESS + BAR_GAP) + 40; 
-    
-    return Math.max(calculatedHeight, 200) + "px";
+  const BAR_THICKNESS = 20;
+  const BAR_GAP = 20;
+
+  const N = (companyData.top_countries || []).length;
+  if (N === 0) return "120px";
+
+  const calculatedHeight = N * (BAR_THICKNESS + BAR_GAP) + 40;
+  return Math.max(calculatedHeight, 200) + "px";
 }
 
 function trafficRenderGeoBarChart(canvas, company, opts) {
-  if (window[canvas.id + "Chart"]) window[canvas.id + "Chart"].destroy(); 
-  
+  if (window[canvas.id + "Chart"]) window[canvas.id + "Chart"].destroy();
+
   const labels = company.top_countries.map(c => c.country);
   const values = company.top_countries.map(c => c.traffic_share);
-  
+
   const BAR_THICKNESS = (opts && opts.BAR_THICKNESS) || 20;
   const barColor = company.color;
 
@@ -367,7 +416,7 @@ function trafficRenderGeoBarChart(canvas, company, opts) {
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        datalabels: { 
+        datalabels: {
           anchor: "end",
           align: "right",
           clamp: true,
@@ -375,17 +424,15 @@ function trafficRenderGeoBarChart(canvas, company, opts) {
           font: { size: 12, weight: "normal" },
           formatter: v => v === 0 ? "" : v + "%"
         },
-        title: { display: true, text: company.name, font: { size: 14, weight: "bold" } }, 
+        title: { display: true, text: company.name, font: { size: 14, weight: "bold" } },
         tooltip: {
-            callbacks: {
-                label: ctx => ctx.raw !== null ? ctx.raw + "%" : ""
-            }
+          callbacks: { label: ctx => ctx.raw !== null ? ctx.raw + "%" : "" }
         }
       },
       indexAxis: "y",
       scales: {
-        y: { 
-          grid: { display: false }, 
+        y: {
+          grid: { display: false },
           ticks: { color: "#0f172a", font: { size: 12 } },
           categoryPercentage: 0.8,
           barPercentage: 0.8
@@ -394,17 +441,17 @@ function trafficRenderGeoBarChart(canvas, company, opts) {
           beginAtZero: true,
           grid: { display: false },
           ticks: { callback: v => v + "%" },
-          max: 100 
+          max: 100
         }
       }
     },
-    plugins: [ChartDataLabels] 
+    plugins: [ChartDataLabels]
   });
 }
 
 function trafficCreateGeoCompanyBlock(container, company) {
   const card = document.createElement("div");
-  card.classList.add("country-card"); 
+  card.classList.add("country-card");
 
   const title = document.createElement("h4");
   title.innerText = company.name;
@@ -414,21 +461,21 @@ function trafficCreateGeoCompanyBlock(container, company) {
   inner.classList.add("chart-inner");
 
   const requiredHeight = trafficGetChartHeight(company);
-  inner.style.height = requiredHeight;
-  card.style.height = requiredHeight; 
+  inner.style.height = requiredHeight;   // chiều cao do JS tính toán
+  card.style.height = requiredHeight;    // card stretch cùng chart
 
   const canvas = document.createElement("canvas");
-  canvas.id = "geo-" + company.name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9-]/g, ""); 
+  canvas.id = "geo-" + company.name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9-]/g, "");
   canvas.style.width = "100%";
-  canvas.style.height = "100%";
-  canvas.setAttribute("height", requiredHeight); 
+  canvas.style.height = "100%";          // ✅ auto-fill container
+  // ❌ KHÔNG set canvas.setAttribute("height", ...)
+
   inner.appendChild(canvas);
   card.appendChild(inner);
   container.appendChild(card);
 
   trafficRenderGeoBarChart(canvas, company, { BAR_THICKNESS: 20 });
 }
-
 
 function trafficRenderCountryCharts(wrapper, data, mode) {
   const rootCanvas = wrapper.querySelector("canvas");
@@ -441,17 +488,17 @@ function trafficRenderCountryCharts(wrapper, data, mode) {
     grid.className = "country-grid";
     wrapper.appendChild(grid);
   }
-  
+
   let companiesToRender = [];
   if (mode === "direct") {
     companiesToRender = [data.yourCompany, ...data.competitors];
-    grid.classList.remove('is-consolidated');
+    grid.classList.remove("is-consolidated");
   } else {
     companiesToRender = [data.yourCompany, data.consolidated].filter(c => c);
-    grid.classList.add('is-consolidated');
+    grid.classList.add("is-consolidated");
   }
 
   companiesToRender.forEach(company => {
-      trafficCreateGeoCompanyBlock(grid, company);
+    trafficCreateGeoCompanyBlock(grid, company);
   });
 }
