@@ -10,7 +10,7 @@ const DASHBOARD_YOUR_COMPANY_COLOR = "#7d83ff";  // Primary
 const DASHBOARD_AVERAGE_COLOR = "#577590";       // Light Grey
 /*const DASHBOARD_PERIODS_COLOR_POOL = ["#cab2d6", "#1f78b4", "#a6cee3", "#33a02c", "#b2df8a", "#ff7f00", "#fdbf6f", "#fb9a99", "#e31a1c"];*/
 
-const COMPETITOR_PASTEL_POOL = [
+const DONUT_COLOR_POOL = [
   "#cab2d6", "#1f78b4", "#a6cee3", "#33a02c", "#b2df8a", "#ff7f00", "#fdbf6f", "#fb9a99", "#e31a1c"
 ];
 
@@ -22,7 +22,8 @@ function getConsistentCompetitorColor(name) {
         return COMPETITOR_COLOR_MAP[name];
     }
     
-    const color = COMPETITOR_PASTEL_POOL[colorIndex % COMPETITOR_PASTEL_POOL.length];
+    // Use the first 8 colors of the palette for individual competitor consistency
+    const color = DONUT_COLOR_POOL[colorIndex % 8]; // Use a subset of the pool
     COMPETITOR_COLOR_MAP[name] = color;
     colorIndex++;
     return color;
