@@ -173,12 +173,17 @@ function trafficInitChart(wrapper, dataUrl) {
     .catch(err => console.error("Error loading traffic data:", err));
 }
 
-// ========== Donut Chart (UPDATED) ==========
+// ========== Donut Chart (UPDATED MULTI) ==========
 function trafficRenderDonutCharts(wrapper, data, mode) {
-    wrapper.innerHTML = "";
-    const grid = document.createElement("div");
-    grid.className = "donut-grid";
-    wrapper.appendChild(grid);
+    // giữ controls, chỉ clear phần chart
+    let grid = wrapper.querySelector(".donut-grid");
+    if (grid) {
+        grid.innerHTML = "";
+    } else {
+        grid = document.createElement("div");
+        grid.className = "donut-grid";
+        wrapper.appendChild(grid);
+    }
 
     function createDonutCard(name, sources) {
         const card = document.createElement("div");
@@ -212,7 +217,6 @@ function trafficRenderDonutCharts(wrapper, data, mode) {
         if (data.consolidated) createDonutCard(data.consolidated.name, data.consolidated.sources);
     }
 }
-
 
 // ========== Line Chart ==========
 function trafficCreateLineChart(ctx, data, mode, valueType) {
