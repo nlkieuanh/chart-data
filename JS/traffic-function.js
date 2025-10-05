@@ -24,6 +24,7 @@ function getConsistentCompetitorColor(name) {
     return color;
 }
 
+
 // ========== Utility Functions ==========
 
 function trafficHexToRgba(hex, alpha) {
@@ -123,15 +124,8 @@ function trafficInitChart(wrapper, dataUrl) {
         const ctx = rootCanvas.getContext("2d");
 
         if (type === "donut") {
-          rootCanvas.style.display = "";
-          const geoGrid = wrapper.querySelector(".country-grid");
-          if (geoGrid) geoGrid.remove();
-
-          let activeEntityData = data.yourCompany;
-          if (currentMode === "consolidate" && data.consolidated) {
-            activeEntityData = data.consolidated;
-          }
-          trafficCreateDonutChart(ctx, activeEntityData);
+          rootCanvas.style.display = "none";
+          trafficRenderDonutCharts(wrapper, data, currentMode);
           return;
         }
 
@@ -145,6 +139,8 @@ function trafficInitChart(wrapper, dataUrl) {
         rootCanvas.style.display = "";
         const geoGrid = wrapper.querySelector(".country-grid");
         if (geoGrid) geoGrid.remove();
+        const donutGrid = wrapper.querySelector(".donut-grid");
+        if (donutGrid) donutGrid.remove();
 
         if (type === "line") {
           trafficCreateLineChart(ctx, data, currentMode, currentValue);
@@ -210,17 +206,17 @@ function trafficInitChart(wrapper, dataUrl) {
     .catch(err => console.error("Error loading traffic data:", err));
 }
 
-// ========== Donut Chart ==========
+// ========== Donut Charts (multi) ==========
 
-function trafficCreateDonutChart(ctx, entityData) {
-  if (!entityData || !Array.isArray(entityData.sources)) return;
-  if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
+function trafficCreateDonutChart(div, entityData) {
+  const canvas = document.createElement("canvas");
+  div.appendChild(canvas);
 
   const labels = entityData.sources.map(s => s.source);
   const data = entityData.sources.map(s => Number(s.share || 0));
   const backgroundColors = labels.map((_, i) => DONUT_COLOR_POOL[i % DONUT_COLOR_POOL.length]);
 
-  window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
+  new Chart(canvas.getContext("2d"), {
     type: "doughnut",
     data: { labels, datasets: [{ data, backgroundColor: backgroundColors }] },
     options: {
@@ -232,6 +228,35 @@ function trafficCreateDonutChart(ctx, entityData) {
       }
     }
   });
+}
+
+function trafficRenderDonutCharts(wrapper, data, mode) {
+  const rootCanvas = wrapper.querySelector("canvas");
+  if (rootCanvas) rootCanvas.style.display = "none";
+
+  let grid = wrapper.querySelector(".donut-grid");
+  if (grid) grid.innerHTML = "";
+  else {
+    grid = document.createElement("div");
+    grid.className = "donut-grid";
+    wrapper.appendChild(grid);
+  }
+
+  if (mode === "direct") {
+    [data.yourCompany, ...data.competitors].forEach(company => {
+      const card = document.createElement("div");
+      card.className = "donut-card";
+      grid.appendChild(card);
+      trafficCreateDonutChart(card, company);
+    });
+  } else {
+    [data.yourCompany, data.consolidated].forEach(company => {
+      const card = document.createElement("div");
+      card.className = "donut-card";
+      grid.appendChild(card);
+      trafficCreateDonutChart(card, company);
+    });
+  }
 }
 
 // ========== Line Chart ==========
@@ -370,3 +395,4 @@ function trafficRenderCountryCharts(wrapper, data, mode) {
     });
   }
 }
+
