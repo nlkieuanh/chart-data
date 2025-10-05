@@ -24,6 +24,7 @@ function getConsistentCompetitorColor(name) {
     return color;
 }
 
+
 // ========== Utility Functions ==========
 
 function trafficHexToRgba(hex, alpha) {
@@ -38,42 +39,58 @@ function trafficToPercent(arr) {
   return arr.map(v => total > 0 ? +(v / total * 100).toFixed(1) : 0);
 }
 
+// Compute consolidated competitor data depending on chart type
 function trafficComputeConsolidated(data) {
   if (!data.competitors || !data.competitors.length) return null;
 
-  if (data.chartType === "geo") {
-    const allEntities = [data.yourCompany, ...data.competitors];
-    const aggregatedCountries = {};
+  // Donut charts: average share by source
+  if (data.chartType === "donut") {
+    const acc = {};
+    const n = data.competitors.length;
 
-    allEntities.forEach(entity => {
-      (entity.top_countries || []).forEach(c => {
-        if (aggregatedCountries[c.country]) {
-          aggregatedCountries[c.country] += c.traffic_share;
-        } else {
-          aggregatedCountries[c.country] = c.traffic_share;
-        }
+    data.competitors.forEach(comp => {
+      (comp.sources || []).forEach(s => {
+        acc[s.source] = (acc[s.source] || 0) + Number(s.share || 0);
       });
     });
 
-    const normalized = Object.keys(aggregatedCountries).map(country => ({
-      country,
-      traffic_share: aggregatedCountries[country]
-    })).sort((a, b) => b.traffic_share - a.traffic_share);
+    const consolidatedSources = Object.keys(acc)
+      .map(source => ({ source, share: +(acc[source] / n).toFixed(2) }))
+      .sort((a, b) => b.share - a.share);
 
-    return {
-      name: "Consolidated Competitors",
-      top_countries: normalized
-    };
+    return { name: "Consolidated Competitors", sources: consolidatedSources };
   }
 
-  const length = data.competitors[0].values.length;
-  const avg = Array(length).fill(0);
-  data.competitors.forEach(c => c.values.forEach((v, i) => { avg[i] += v; }));
+  // Geo-bar charts: sum traffic share by country
+  if (data.chartType === "geo") {
+    const aggregated = {};
+    data.competitors.forEach(c => {
+      (c.top_countries || []).forEach(tc => {
+        aggregated[tc.country] = (aggregated[tc.country] || 0) + Number(tc.traffic_share || 0);
+      });
+    });
+
+    const consolidatedCountries = Object.keys(aggregated)
+      .map(country => ({ country, traffic_share: +aggregated[country].toFixed(2) }))
+      .sort((a, b) => b.traffic_share - a.traffic_share);
+
+    return { name: "Consolidated Competitors", top_countries: consolidatedCountries };
+  }
+
+  // Line/Bar charts: average values across competitors
+  const firstWithValues = (data.competitors || []).find(c => Array.isArray(c.values));
+  if (!firstWithValues) return null;
+
+  const len = firstWithValues.values.length;
+  const sums = Array(len).fill(0);
+  data.competitors.forEach(c => {
+    (c.values || []).forEach((v, i) => { sums[i] += Number(v || 0); });
+  });
 
   return {
     name: "Average Competitors",
     color: DASHBOARD_AVERAGE_COLOR,
-    values: avg.map(v => +(v / data.competitors.length).toFixed(1))
+    values: sums.map(v => +(v / data.competitors.length).toFixed(1))
   };
 }
 
@@ -94,9 +111,7 @@ function trafficInitChart(wrapper, dataUrl) {
 
       if (data.yourCompany) data.yourCompany.color = DASHBOARD_YOUR_COMPANY_COLOR;
       if (data.competitors) {
-        data.competitors.forEach(c => {
-          c.color = getConsistentCompetitorColor(c.name);
-        });
+        data.competitors.forEach(c => { c.color = getConsistentCompetitorColor(c.name); });
       }
 
       function setActive(group, activeBtn) {
@@ -108,8 +123,12 @@ function trafficInitChart(wrapper, dataUrl) {
         const ctx = rootCanvas.getContext("2d");
 
         if (type === "donut") {
+          if (rootCanvas && rootCanvas.style.display === "none") rootCanvas.style.display = "";
+          const geoGrid = wrapper.querySelector(".country-grid");
+          if (geoGrid) geoGrid.remove();
+
           let activeEntityData = data.yourCompany;
-          if (currentMode === 'consolidate' && data.consolidated) {
+          if (currentMode === "consolidate" && data.consolidated) {
             activeEntityData = data.consolidated;
           }
           trafficCreateDonutChart(ctx, activeEntityData);
@@ -117,6 +136,7 @@ function trafficInitChart(wrapper, dataUrl) {
         }
 
         if (type === "geo") {
+          if (rootCanvas) rootCanvas.style.display = "none";
           trafficRenderCountryCharts(wrapper, data, currentMode);
           return;
         }
@@ -186,25 +206,31 @@ function trafficInitChart(wrapper, dataUrl) {
 }
 
 // ========== Donut Chart ==========
+
 function trafficCreateDonutChart(ctx, entityData) {
+  if (!entityData || !Array.isArray(entityData.sources)) return;
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
 
   const labels = entityData.sources.map(s => s.source);
-  const data = entityData.sources.map(s => s.share);
-
+  const data = entityData.sources.map(s => Number(s.share || 0));
   const backgroundColors = labels.map((_, i) => DONUT_COLOR_POOL[i % DONUT_COLOR_POOL.length]);
 
   window[ctx.canvas.id + "Chart"] = new Chart(ctx, {
     type: "doughnut",
     data: { labels, datasets: [{ data, backgroundColor: backgroundColors }] },
     options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: "right" }, title: { display: true, text: entityData.name } }
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "right" },
+        title: { display: true, text: entityData.name }
+      }
     }
   });
 }
 
 // ========== Line Chart ==========
+
 function trafficCreateLineChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
   const getValues = arr => valueType === "percent" ? trafficToPercent(arr) : arr;
@@ -226,6 +252,7 @@ function trafficCreateLineChart(ctx, data, mode, valueType) {
 }
 
 // ========== Grouped Bar ==========
+
 function trafficCreateGroupedBarChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
   const getValues = arr => valueType === "percent" ? trafficToPercent(arr) : arr;
@@ -247,6 +274,7 @@ function trafficCreateGroupedBarChart(ctx, data, mode, valueType) {
 }
 
 // ========== Stacked Horizontal Bar ==========
+
 function trafficCreateStackedHorizontalBarChart(ctx, data, mode, valueType) {
   if (window[ctx.canvas.id + "Chart"]) window[ctx.canvas.id + "Chart"].destroy();
   const getValues = arr => valueType === "percent" ? trafficToPercent(arr) : arr;
@@ -266,7 +294,8 @@ function trafficCreateStackedHorizontalBarChart(ctx, data, mode, valueType) {
     type: "bar",
     data: { labels, datasets },
     options: {
-      responsive: true, maintainAspectRatio: false,
+      responsive: true,
+      maintainAspectRatio: false,
       plugins: { legend: { position: "bottom" } },
       indexAxis: "y",
       scales: { x: { stacked: true, beginAtZero: true }, y: { stacked: true } }
@@ -345,3 +374,4 @@ function trafficRenderCountryCharts(wrapper, data, mode) {
     });
   }
 }
+
