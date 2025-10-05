@@ -331,15 +331,10 @@ function trafficCreateCountryBarChart(div, companyData) {
 
   const barColor = companyData.color || getConsistentCompetitorColor(companyData.name);
 
-  // interleave: country -> bar, spacer -> gap
-  const datasetLabels = [];
-  const datasetValues = [];
-  labels.forEach((label, i) => {
-    datasetLabels.push(label);
-    datasetValues.push(values[i]);
-    datasetLabels.push("");      // spacer label
-    datasetValues.push(null);    // spacer value
-  });
+  // === START FIX: Bỏ kỹ thuật Spacer và sử dụng barPercentage/categoryPercentage ===
+  const datasetLabels = labels;
+  const datasetValues = values;
+  // === END FIX ===
 
   new Chart(canvas.getContext("2d"), {
     type: "bar",
@@ -347,10 +342,8 @@ function trafficCreateCountryBarChart(div, companyData) {
       labels: datasetLabels,
       datasets: [{
         data: datasetValues,
-        backgroundColor: datasetLabels.map(l => l === "" ? "rgba(0,0,0,0)" : barColor),
-        barThickness: 10,
-        barPercentage: 1.0, 
-        categoryPercentage: 1.0
+        backgroundColor: barColor, // Đã bỏ logic màu cho spacer
+        barThickness: 20
       }]
     },
     options: {
@@ -362,6 +355,7 @@ function trafficCreateCountryBarChart(div, companyData) {
         title: { display: true, text: companyData.name, font: { size: 14, weight: "bold" } },
         tooltip: {
           callbacks: {
+            // Đã bỏ logic kiểm tra null vì không còn spacer
             label: ctx => ctx.raw !== null ? ctx.raw + "%" : ""
           }
         }
@@ -372,8 +366,13 @@ function trafficCreateCountryBarChart(div, companyData) {
           ticks: { callback: v => v + "%" }
         },
         y: {
+          // === START FIX: Thêm thuộc tính để tạo khoảng cách giữa các thanh ===
+          categoryPercentage: 0.8, // Khoảng 20% không gian danh mục sẽ là khoảng trống
+          barPercentage: 0.8,      // Bar chiếm 80% không gian danh mục đã cấp
+          // === END FIX ===
           ticks: {
             autoSkip: false,
+            // Sửa callback để sử dụng labels gốc
             callback: function(value, index) {
               return datasetLabels[index] || "";
             }
@@ -412,4 +411,3 @@ function trafficRenderCountryCharts(wrapper, data, mode) {
     });
   }
 }
-
