@@ -344,6 +344,9 @@ function trafficCreateCountryBarChart(div, companyData) {
 
   const barColor = companyData.color || getConsistentCompetitorColor(companyData.name);
 
+  const targetHeight = labels.length * (20 + 20) + 40;
+  div.style.height = targetHeight + "px";
+
   new Chart(canvas.getContext("2d"), {
     type: "bar",
     data: {
@@ -353,8 +356,7 @@ function trafficCreateCountryBarChart(div, companyData) {
         data: values,
         backgroundColor: barColor,
         barThickness: 20,      // fixed bar thickness
-        categoryPercentage: 1, // ensures space between categories is respected
-        barPercentage: 1  
+        categoryPercentage: 0.5
       }]
     },
     options: {
