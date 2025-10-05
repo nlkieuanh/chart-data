@@ -326,12 +326,15 @@ function trafficCreateStackedHorizontalBarChart(ctx, data, mode, valueType) {
 
 function trafficGetChartHeight(companyData) {
     const BAR_THICKNESS = 20; 
-    const SPACER_HEIGHT = 20; 
+    const BAR_GAP = 20; // Use a constant gap/margin similar to bar thickness
     
+    // N is the number of data points (countries)
     const N = (companyData.top_countries || []).length;
+    
     if (N === 0) return "120px";
     
-    const calculatedHeight = N * (BAR_THICKNESS + SPACER_HEIGHT) + 40; 
+    // Calculate required height based on number of bars + space between them + padding
+    const calculatedHeight = N * (BAR_THICKNESS + BAR_GAP) + 40; 
     
     return Math.max(calculatedHeight, 200) + "px";
 }
@@ -442,8 +445,10 @@ function trafficRenderCountryCharts(wrapper, data, mode) {
   let companiesToRender = [];
   if (mode === "direct") {
     companiesToRender = [data.yourCompany, ...data.competitors];
+    grid.classList.remove('is-consolidated');
   } else {
     companiesToRender = [data.yourCompany, data.consolidated].filter(c => c);
+    grid.classList.add('is-consolidated');
   }
 
   companiesToRender.forEach(company => {
