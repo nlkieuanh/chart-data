@@ -1,35 +1,14 @@
 {
+  "statusCode": "202", 
   "chartType": "line",
   "periods": [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec"
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
   ],
   "yourCompany": {
     "name": "Your Company",
     "color": "#3366cc",
     "values": [
-      100,
-      110,
-      120,
-      130,
-      140,
-      150,
-      160,
-      170,
-      180,
-      190,
-      200,
-      210
+      100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210
     ]
   },
   "competitors": [
@@ -37,18 +16,7 @@
       "name": "Competitor A",
       "color": "#dc3912",
       "values": [
-        80,
-        88,
-        96,
-        104,
-        112,
-        120,
-        128,
-        136,
-        144,
-        152,
-        160,
-        168
+        80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 168
       ]
     },
     {
