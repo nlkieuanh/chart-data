@@ -1,5 +1,5 @@
 {
-  "statusCode": "202", 
+  "statusCode": 202, 
   "chartType": "line",
   "periods": [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
