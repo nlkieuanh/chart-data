@@ -1,5 +1,5 @@
 {
-  "chartType": "bar",
+  "chartType": "stacked-bar",
   "periods": [
     "Brand Marketing",
     "Product Marketing",
