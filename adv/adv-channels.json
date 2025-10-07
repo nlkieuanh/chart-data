@@ -1,5 +1,5 @@
 {
-  "chartType": "bar-grouped",
+  "chartType": "bar-stacked",
   "periods": ["Facebook","Google","TikTok","LinkedIn"],
   "yourCompany": {
     "name": "Your Company",
