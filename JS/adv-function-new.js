@@ -50,6 +50,7 @@ function advGetMetricSeries(json, channelId, companyId, metric, dateIndexes) {
    4. Consolidate multiple channels (sum arrays)
    ============================================================ */
 function advConsolidateChannels(seriesList) {
+    if (!seriesList.length) return [];
     const length = seriesList[0].length;
     const result = new Array(length).fill(0);
 
@@ -91,13 +92,12 @@ function advBuildChartPayload({
 
     /* DIRECT MODE */
     if (mode === "direct") {
-        // Your company = only first selected channel
         const firstChannel = channelIds[0];
         yourCompanySeries = advGetMetricSeries(json, firstChannel, yourCompanyId, metric, dateIndexes);
 
-        // Competitors for selected channels
         competitorSeries = channelIds.map(ch => {
             const channel = json.channels.find(c => c.id === ch);
+            if (!channel) return [];
             return channel.companies
                 .filter(c => c.id !== yourCompanyId)
                 .map(comp => ({
@@ -110,16 +110,19 @@ function advBuildChartPayload({
 
     /* CONSOLIDATE MODE */
     if (mode === "consolidate") {
-        // Consolidate your company across selected channels
         const yourSeriesList = channelIds.map(ch =>
             advGetMetricSeries(json, ch, yourCompanyId, metric, dateIndexes)
-        );
-        yourCompanySeries = advConsolidateChannels(yourSeriesList);
+        ).filter(arr => arr.length);
 
-        // Consolidate each competitor across selected channels
+        if (yourSeriesList.length) {
+            yourCompanySeries = advConsolidateChannels(yourSeriesList);
+        }
+
         const compGroups = {};
         channelIds.forEach(ch => {
             const channel = json.channels.find(c => c.id === ch);
+            if (!channel) return;
+
             channel.companies.forEach(comp => {
                 if (comp.id === yourCompanyId) return;
 
@@ -130,9 +133,8 @@ function advBuildChartPayload({
                         list: []
                     };
                 }
-                compGroups[comp.id].list.push(
-                    advGetMetricSeries(json, ch, comp.id, metric, dateIndexes)
-                );
+                const series = advGetMetricSeries(json, ch, comp.id, metric, dateIndexes);
+                if (series.length) compGroups[comp.id].list.push(series);
             });
         });
 
@@ -144,7 +146,7 @@ function advBuildChartPayload({
     }
 
     /* VALUE TYPE = percent */
-    if (valueType === "percent") {
+    if (valueType === "percent" && yourCompanySeries.length) {
         const total = yourCompanySeries.map((_, i) => {
             let s = yourCompanySeries[i];
             competitorSeries.forEach(c => s += c.values[i]);
@@ -198,6 +200,8 @@ async function advRenderNewChart({
 
     if (window.drawChart) {
         window.drawChart(payload);
+    } else {
+        console.warn("drawChart(payload) is not defined.");
     }
 }
 
@@ -208,19 +212,19 @@ async function advRenderNewChart({
 function advInitChart(wrapper, jsonUrl) {
     const canvas = wrapper.querySelector("canvas");
     if (!canvas) {
-        console.error("Canvas not found");
+        console.error("Canvas not found inside wrapper.");
         return;
     }
 
-    /* Default config */
+    // Default config
     let selectedChannels = ["facebook"];
     let startDate = "2025-01-01";
     let endDate = "2025-12-31";
     let metric = "netRevenue";
-    let mode = "direct";
-    let valueType = "absolute";
+    let mode = "direct";       // direct | consolidate
+    let valueType = "absolute"; // absolute | percent
 
-    /* CHANNEL CHECKBOXES */
+    /* ------------- CHANNEL CHECKBOXES (still via data-adv-channel) ------------- */
     function connectChannelCheckbox() {
         const checkboxes = document.querySelectorAll("[data-adv-channel]");
         if (!checkboxes.length) return;
@@ -230,18 +234,24 @@ function advInitChart(wrapper, jsonUrl) {
                 selectedChannels = Array.from(
                     document.querySelectorAll("[data-adv-channel]:checked")
                 ).map(el => el.getAttribute("data-adv-channel"));
+                if (!selectedChannels.length) {
+                    selectedChannels = ["facebook"];
+                }
                 refreshChart();
             });
         });
 
-        selectedChannels = Array.from(
+        const initSelected = Array.from(
             document.querySelectorAll("[data-adv-channel]:checked")
         ).map(el => el.getAttribute("data-adv-channel"));
+        if (initSelected.length) {
+            selectedChannels = initSelected;
+        }
     }
 
-    /* DATE RANGE FILTER */
+    /* ------------- DATE RANGE FILTER (flatpickr) ------------- */
     function connectDateFilter() {
-        const input = document.querySelector("[data-adv-daterange]");
+        const input = wrapper.querySelector("[data-adv-daterange]") || document.querySelector("[data-adv-daterange]");
         if (!input || typeof flatpickr === "undefined") return;
 
         flatpickr(input, {
@@ -250,33 +260,72 @@ function advInitChart(wrapper, jsonUrl) {
             onChange: (selectedDates) => {
                 if (selectedDates.length === 2) {
                     startDate = selectedDates[0].toISOString().split("T")[0];
-                    endDate = selectedDates[1].toISOString().split("T")[00];
+                    endDate = selectedDates[1].toISOString().split("T")[0];
                     refreshChart();
                 }
             }
         });
     }
 
-    /* MODE SWITCH */
+    /* ------------- MODE / VALUE SWITCH USING WEBFLOW CLASSES ------------- */
     function connectModeSwitch() {
-        const modeBtns = document.querySelectorAll("[data-adv-mode]");
-        modeBtns.forEach(btn => {
-            btn.addEventListener("click", () => {
-                mode = btn.getAttribute("data-adv-mode");
-                refreshChart();
-            });
-        });
+        const modeWrapper = wrapper.querySelector(".chart-switch-mode-btn");
+        const valueWrapper = wrapper.querySelector(".chart-switch-value-btn");
 
-        const valBtns = document.querySelectorAll("[data-adv-value]");
-        valBtns.forEach(btn => {
-            btn.addEventListener("click", () => {
-                valueType = btn.getAttribute("data-adv-value");
-                refreshChart();
-            });
+        // Mode: direct / consolidate
+        if (modeWrapper) {
+            const btnDirect = modeWrapper.querySelector(".btn-direct");
+            const btnConsolidate = modeWrapper.querySelector(".btn-consolidate");
+
+            if (btnDirect) {
+                btnDirect.addEventListener("click", function () {
+                    mode = "direct";
+                    setActive(btnDirect, [btnConsolidate]);
+                    refreshChart();
+                });
+            }
+
+            if (btnConsolidate) {
+                btnConsolidate.addEventListener("click", function () {
+                    mode = "consolidate";
+                    setActive(btnConsolidate, [btnDirect]);
+                    refreshChart();
+                });
+            }
+        }
+
+        // Value: absolute / percent
+        if (valueWrapper) {
+            const btnAbsolute = valueWrapper.querySelector(".btn-absolute");
+            const btnPercent = valueWrapper.querySelector(".btn-percent");
+
+            if (btnAbsolute) {
+                btnAbsolute.addEventListener("click", function () {
+                    valueType = "absolute";
+                    setActive(btnAbsolute, [btnPercent]);
+                    refreshChart();
+                });
+            }
+
+            if (btnPercent) {
+                btnPercent.addEventListener("click", function () {
+                    valueType = "percent";
+                    setActive(btnPercent, [btnAbsolute]);
+                    refreshChart();
+                });
+            }
+        }
+    }
+
+    // Small helper to toggle active class
+    function setActive(activeEl, others) {
+        activeEl.classList.add("is-active");
+        (others || []).forEach(el => {
+            if (el) el.classList.remove("is-active");
         });
     }
 
-    /* RENDER CHART */
+    /* ------------- RENDER CHART ------------- */
     function refreshChart() {
         advRenderNewChart({
             jsonUrl,
@@ -289,7 +338,7 @@ function advInitChart(wrapper, jsonUrl) {
         });
     }
 
-    /* INIT FLOW */
+    /* ------------- INIT FLOW ------------- */
     connectChannelCheckbox();
     connectDateFilter();
     connectModeSwitch();
