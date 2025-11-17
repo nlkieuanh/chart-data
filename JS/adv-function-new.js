@@ -1,9 +1,6 @@
 /***********************************************************
- * ADV FUNCTION NEW — SINGLE JSON LOAD + REDRAW
- * - New JSON structure (adv-channel-new.json)
- * - Default = last 7 days
- * - Date filter via window._advCurrentChart.setDateRange()
- * - Mode / Value switch via Webflow classes
+ * ADV FUNCTION NEW — CHART + TABLE + DATE + CHANNEL
+ * Works with adv-channel-new.json
  ***********************************************************/
 
 /* ---------- Helpers ---------- */
@@ -19,6 +16,17 @@ function advHexToRgba(hex, alpha) {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return "rgba(" + r + "," + g + "," + b + "," + alpha + ")";
+}
+
+function advSumSubset(arr, indexes) {
+  if (!Array.isArray(arr)) return 0;
+  if (!indexes || !indexes.length) {
+    return arr.reduce(function (acc, v) { return acc + (Number(v) || 0); }, 0);
+  }
+  return indexes.reduce(function (acc, idx) {
+    var v = arr[idx];
+    return acc + (Number(v) || 0);
+  }, 0);
 }
 
 /* ============================================================
@@ -312,7 +320,56 @@ function advRenderLineChart(canvas, payload, valueType) {
 }
 
 /* ============================================================
-   7. Init chart (Webflow entry)
+   7. Render TABLE (Your Company per channel, filtered by date)
+   ============================================================ */
+
+function advRenderChannelTable(json, tbody, selectedChannels, dateIndexes) {
+  if (!tbody) return;
+  const channels = json.channels || [];
+  const dates = json.dates || [];
+  if (!dates.length) return;
+
+  const rowsHtml = channels.map(function (channel, index) {
+    const companies = channel.companies || [];
+    const yourCompany = companies.find(function (c) { return c.id === "your-company"; });
+    if (!yourCompany) return "";
+
+    const netRevenue = advSumSubset(yourCompany.netRevenue, dateIndexes);
+    const spend = advSumSubset(yourCompany.spend, dateIndexes);
+    const orders = advSumSubset(yourCompany.orders, dateIndexes);
+    const newCustomers = advSumSubset(yourCompany.newCustomers, dateIndexes);
+    const sessions = advSumSubset(yourCompany.sessions, dateIndexes);
+
+    const cpo = orders ? spend / orders : 0;
+    const cac = newCustomers ? spend / newCustomers : 0;
+    const cvr = sessions ? (orders / sessions) * 100 : 0;
+    const rps = sessions ? netRevenue / sessions : 0;
+
+    const isChecked = selectedChannels.indexOf(channel.id) !== -1;
+    const checkedAttr = isChecked ? "checked" : "";
+
+    return (
+      "<tr>" +
+      '<td><input type="checkbox" class="adv-channel-checkbox" data-adv-channel="' + channel.id + '" ' + checkedAttr + " /></td>" +
+      "<td>" + channel.label + "</td>" +
+      "<td>" + netRevenue.toFixed(2) + "</td>" +
+      "<td>" + spend.toFixed(2) + "</td>" +
+      "<td>" + orders.toLocaleString() + "</td>" +
+      "<td>" + cpo.toFixed(2) + "</td>" +
+      "<td>" + newCustomers.toLocaleString() + "</td>" +
+      "<td>" + cac.toFixed(2) + "</td>" +
+      "<td>" + sessions.toLocaleString() + "</td>" +
+      "<td>" + cvr.toFixed(2) + "%</td>" +
+      "<td>" + rps.toFixed(2) + "</td>" +
+      "</tr>"
+    );
+  }).join("");
+
+  tbody.innerHTML = rowsHtml;
+}
+
+/* ============================================================
+   8. Init chart (Webflow entry) — also controls table
    ============================================================ */
 
 function advInitChart(wrapper, jsonUrl) {
@@ -322,9 +379,12 @@ function advInitChart(wrapper, jsonUrl) {
     return;
   }
 
+  const table = document.getElementById("adv-channel-table");
+  const tbody = table ? table.querySelector("tbody") : null;
+
   // State inside this chart instance
   let jsonData = null;
-  let selectedChannels = ["facebook"]; // later: checkbox
+  let selectedChannels = ["facebook"]; // default
   let startDate = null;
   let endDate = null;
   let metric = "netRevenue";
@@ -348,19 +408,32 @@ function advInitChart(wrapper, jsonUrl) {
         max: allDates[allDates.length - 1]
       };
 
+      // Default selectedChannels = all channels? or first only
+      if (!selectedChannels.length && (jsonData.channels || []).length) {
+        selectedChannels = [jsonData.channels[0].id];
+      }
+
       // First render
-      renderChart();
+      renderChartAndTable();
     })
     .catch(function (err) {
       console.error("[ADV] Failed to load JSON:", err);
     });
 
-  // Expose controller for date dropdown script
+  // Expose controller for external UI (date + channels)
   window._advCurrentChart = {
     setDateRange: function (start, end) {
       if (start) startDate = start;
       if (end) endDate = end;
-      renderChart();
+      renderChartAndTable();
+    },
+    setChannels: function (channelIds) {
+      if (Array.isArray(channelIds) && channelIds.length) {
+        selectedChannels = channelIds;
+      } else {
+        selectedChannels = ["facebook"];
+      }
+      renderChartAndTable();
     }
   };
 
@@ -378,7 +451,7 @@ function advInitChart(wrapper, jsonUrl) {
         btnDirect.addEventListener("click", function () {
           mode = "direct";
           setActive(btnDirect, [btnConsolidate]);
-          renderChart();
+          renderChartAndTable();
         });
       }
 
@@ -386,7 +459,7 @@ function advInitChart(wrapper, jsonUrl) {
         btnConsolidate.addEventListener("click", function () {
           mode = "consolidate";
           setActive(btnConsolidate, [btnDirect]);
-          renderChart();
+          renderChartAndTable();
         });
       }
     }
@@ -399,7 +472,7 @@ function advInitChart(wrapper, jsonUrl) {
         btnAbsolute.addEventListener("click", function () {
           valueType = "absolute";
           setActive(btnAbsolute, [btnPercent]);
-          renderChart();
+          renderChartAndTable();
         });
       }
 
@@ -407,7 +480,7 @@ function advInitChart(wrapper, jsonUrl) {
         btnPercent.addEventListener("click", function () {
           valueType = "percent";
           setActive(btnPercent, [btnAbsolute]);
-          renderChart();
+          renderChartAndTable();
         });
       }
     }
@@ -421,36 +494,32 @@ function advInitChart(wrapper, jsonUrl) {
     });
   }
 
-  // Placeholder for future channel checkbox
-  function connectChannelCheckbox() {
-    const checkboxes = document.querySelectorAll("[data-adv-channel]");
-    if (!checkboxes.length) return;
+  /* ---------- Checkbox listener (delegation on tbody) ---------- */
 
-    checkboxes.forEach(function (cb) {
-      cb.addEventListener("change", function () {
-        selectedChannels = Array.from(
-          document.querySelectorAll("[data-adv-channel]:checked")
-        ).map(function (el) { return el.getAttribute("data-adv-channel"); });
+  function connectTableCheckbox() {
+    if (!tbody) return;
 
-        if (!selectedChannels.length) {
-          selectedChannels = ["facebook"];
-        }
-        renderChart();
-      });
+    tbody.addEventListener("change", function (event) {
+      const cb = event.target.closest(".adv-channel-checkbox");
+      if (!cb) return;
+
+      const checkedIds = Array.from(
+        tbody.querySelectorAll(".adv-channel-checkbox:checked")
+      ).map(function (el) { return el.getAttribute("data-adv-channel"); });
+
+      if (checkedIds.length) {
+        selectedChannels = checkedIds;
+      } else {
+        selectedChannels = ["facebook"];
+      }
+
+      renderChartAndTable();
     });
-
-    const initSelected = Array.from(
-      document.querySelectorAll("[data-adv-channel]:checked")
-    ).map(function (el) { return el.getAttribute("data-adv-channel"); });
-
-    if (initSelected.length) {
-      selectedChannels = initSelected;
-    }
   }
 
   /* ---------- Render with current state ---------- */
 
-  function renderChart() {
+  function renderChartAndTable() {
     if (!jsonData) return;
 
     const allDates = jsonData.dates || [];
@@ -476,6 +545,12 @@ function advInitChart(wrapper, jsonUrl) {
       return;
     }
 
+    // Ensure at least one channel selected
+    if (!selectedChannels.length && (jsonData.channels || []).length) {
+      selectedChannels = [jsonData.channels[0].id];
+    }
+
+    // Chart payload + render
     const payload = advBuildChartPayload({
       json: jsonData,
       channelIds: selectedChannels,
@@ -486,11 +561,16 @@ function advInitChart(wrapper, jsonUrl) {
     });
 
     advRenderLineChart(canvas, payload, valueType);
+
+    // Table render (Your Company per channel, same date range)
+    if (tbody) {
+      advRenderChannelTable(jsonData, tbody, selectedChannels, dateIndexes);
+    }
   }
 
-  // Bind UI listeners
-  connectChannelCheckbox(); // safe even if no checkbox yet
+  // Bind UI
   connectModeSwitch();
+  connectTableCheckbox();
 }
 
 /* Expose globally */
