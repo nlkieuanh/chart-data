@@ -1,11 +1,12 @@
 
 /***********************************************************
- * ADV FUNCTION TABLE + CHART
- * - Uses adv-channel-new.json
- * - Chart: all companies (per selected channels, per date range)
- * - Table: per company (select via dropdown), per date range
- * - Shared date filter for chart + table
- * - Channel checkboxes live in table rows and control chart
+ * ADV FUNCTION TABLE + CHART (metric + company + channel)
+ * - Works with adv-channel-new.json
+ * - Chart: all companies for selected channel(s), per date range
+ * - Table: one company at a time (selected via dropdown), per date range
+ * - Shared date filter (via _advCurrentChart.setDateRange)
+ * - Shared channel selection (checkbox in table)
+ * - Metric dropdown to choose which metric to plot in chart
  ***********************************************************/
 
 /* ---------- Helpers ---------- */
@@ -203,7 +204,7 @@ function advBuildChartPayload(options) {
     });
   }
 
-  // Choose "your-company" as primary if exists
+  // Choose "Your Company" as primary if exists
   var yourCompany = seriesList.find(function (s) { return s.name === "Your Company"; }) || seriesList[0] || null;
   var competitors = [];
   if (yourCompany) {
@@ -365,7 +366,7 @@ function advRenderChannelTable(json, tbody, selectedChannels, dateIndexes, compa
 }
 
 /* ============================================================
-   8. Company dropdown (build items from JSON)
+   8. Company & Metric dropdowns (build items from JSON)
    ============================================================ */
 
 function advInitCompanyDropdown(companies) {
@@ -375,7 +376,6 @@ function advInitCompanyDropdown(companies) {
     var scriptHolder = wrapper.querySelector(".company-select-script");
     var listContainer = scriptHolder ? scriptHolder.parentElement : wrapper;
 
-    // Remove old items except script
     Array.prototype.slice.call(listContainer.children).forEach(function (child) {
       if (child === scriptHolder) return;
       listContainer.removeChild(child);
@@ -394,7 +394,6 @@ function advInitCompanyDropdown(companies) {
       listContainer.appendChild(item);
     });
 
-    // Default label = first company
     var label = wrapper.querySelector(".company-dd-selected");
     if (label && companies[0]) {
       label.textContent = companies[0].name;
@@ -415,7 +414,6 @@ function advApplyCompanySelection(item) {
   var target = wrapper.querySelector(".company-dd-selected");
   if (target) target.textContent = selectedText;
 
-  // Optional: trigger Webflow tab
   var tab = document.querySelector('[data-w-tab="' + value + '"]');
   if (tab) tab.click();
 
@@ -424,16 +422,80 @@ function advApplyCompanySelection(item) {
   }
 }
 
-// Global click handler for company dropdown
-document.addEventListener("click", function (event) {
-  var item = event.target.closest(".company-dd-link-select [data-dropdown]");
+// Metric dropdown
+
+function advInitMetricDropdown(metrics, labelsMap) {
+  if (!Array.isArray(metrics) || !metrics.length) return;
+
+  document.querySelectorAll(".chart-metric-dd-select").forEach(function (wrapper) {
+    var scriptHolder = wrapper.querySelector(".chart-metric-select-script");
+    var listContainer = scriptHolder ? scriptHolder.parentElement : wrapper;
+
+    Array.prototype.slice.call(listContainer.children).forEach(function (child) {
+      if (child === scriptHolder) return;
+      listContainer.removeChild(child);
+    });
+
+    metrics.forEach(function (metricId) {
+      var item = document.createElement("div");
+      item.className = "filter-dropdown-item";
+      item.setAttribute("data-dropdown", metricId);
+
+      var text = document.createElement("div");
+      text.className = "dropdown-item-text";
+      text.textContent = labelsMap[metricId] || metricId;
+
+      item.appendChild(text);
+      listContainer.appendChild(item);
+    });
+
+    var label = wrapper.querySelector(".chart-metric-dd-selected");
+    if (label && metrics[0]) {
+      label.textContent = labelsMap[metrics[0]] || metrics[0];
+    }
+  });
+}
+
+function advApplyMetricSelection(item) {
   if (!item) return;
 
-  advApplyCompanySelection(item);
+  var wrapper = item.closest(".chart-metric-dd-select");
+  if (!wrapper) return;
 
-  var dd = item.closest(".dropdown, .w-dropdown");
-  if (dd && window.$) {
-    $(dd).triggerHandler("w-close.w-dropdown");
+  var value = item.getAttribute("data-dropdown");
+  var textEl = item.querySelector(".dropdown-item-text") || item;
+  var selectedText = (textEl.textContent || "").trim();
+
+  var target = wrapper.querySelector(".chart-metric-dd-selected");
+  if (target) target.textContent = selectedText;
+
+  var tab = document.querySelector('[data-w-tab="' + value + '"]');
+  if (tab) tab.click();
+
+  if (window._advCurrentChart && typeof window._advCurrentChart.setMetric === "function") {
+    window._advCurrentChart.setMetric(value);
+  }
+}
+
+// Global click handler for company + metric dropdowns
+document.addEventListener("click", function (event) {
+  var companyItem = event.target.closest(".company-dd-link-select [data-dropdown]");
+  if (companyItem) {
+    advApplyCompanySelection(companyItem);
+    var dd1 = companyItem.closest(".dropdown, .w-dropdown");
+    if (dd1 && window.$) {
+      $(dd1).triggerHandler("w-close.w-dropdown");
+    }
+    return;
+  }
+
+  var metricItem = event.target.closest(".chart-metric-dd-select [data-dropdown]");
+  if (metricItem) {
+    advApplyMetricSelection(metricItem);
+    var dd2 = metricItem.closest(".dropdown, .w-dropdown");
+    if (dd2 && window.$) {
+      $(dd2).triggerHandler("w-close.w-dropdown");
+    }
   }
 });
 
@@ -453,7 +515,7 @@ function advInitChart(wrapper, jsonUrl) {
 
   // State inside this chart instance
   let jsonData = null;
-  let selectedChannels = [];     // will be set after JSON load
+  let selectedChannels = [];     // single channel at a time
   let startDate = null;
   let endDate = null;
   let metric = "netRevenue";
@@ -461,7 +523,6 @@ function advInitChart(wrapper, jsonUrl) {
   let valueType = "absolute";    // absolute | percent
   let currentCompanyId = null;   // for table only
 
-  // Load JSON once, then render
   advLoadNewJSON(jsonUrl)
     .then(function (json) {
       jsonData = json;
@@ -481,33 +542,54 @@ function advInitChart(wrapper, jsonUrl) {
 
       // Company list from first channel
       const firstChannel = channels[0];
-      if (firstChannel && Array.isArray(firstChannel.companies)) {
+      if (firstChannel && Array.isArray(firstChannel.companies) && firstChannel.companies.length) {
         const companyList = firstChannel.companies.map(function (c) {
           return { id: c.id, name: c.name };
         });
         advInitCompanyDropdown(companyList);
-        // Default table company = first company
-        if (!currentCompanyId && companyList[0]) {
+        if (!currentCompanyId) {
           currentCompanyId = companyList[0].id;
         }
       }
 
-      // Default selectedChannels = all channels
-      selectedChannels = channels.map(function (c) { return c.id; });
+      // Metric list from json.baseMetrics or infer from first company
+      var metricList = [];
+      if (Array.isArray(jsonData.baseMetrics) && jsonData.baseMetrics.length) {
+        metricList = jsonData.baseMetrics.slice();
+      } else if (firstChannel && firstChannel.companies && firstChannel.companies[0]) {
+        metricList = Object.keys(firstChannel.companies[0]).filter(function (key) {
+          return Array.isArray(firstChannel.companies[0][key]);
+        });
+      }
 
-      // Initial render
+      var metricLabels = {
+        netRevenue: "Net Revenue",
+        spend: "Spend",
+        orders: "Orders",
+        newCustomers: "New Customers",
+        sessions: "Sessions"
+      };
+
+      if (metricList.length) {
+        advInitMetricDropdown(metricList, metricLabels);
+        if (metricList.indexOf(metric) === -1) {
+          metric = metricList[0];
+        }
+      }
+
+      // Default selected channel = first channel only
+      selectedChannels = [channels[0].id];
+
+      // Initial render and bindings
       renderChartAndTable();
-
-      // Init table checkbox delegation
       connectTableCheckbox();
-      // Init mode/value switches
       connectModeSwitch();
     })
     .catch(function (err) {
       console.error("[ADV] Failed to load JSON:", err);
     });
 
-  // Expose controller for external UI (date + channels + company)
+  // Expose controller for external UI (date + channels + company + metric)
   window._advCurrentChart = {
     setDateRange: function (start, end) {
       if (start) startDate = start;
@@ -516,14 +598,16 @@ function advInitChart(wrapper, jsonUrl) {
     },
     setChannels: function (channelIds) {
       if (Array.isArray(channelIds) && channelIds.length) {
-        selectedChannels = channelIds;
-      } else if (jsonData && (jsonData.channels || []).length) {
-        selectedChannels = jsonData.channels.map(function (c) { return c.id; });
+        selectedChannels = channelIds.slice(0, 1); // keep first only
       }
       renderChartAndTable();
     },
     setCompany: function (companyId) {
       currentCompanyId = companyId;
+      renderChartAndTable();
+    },
+    setMetric: function (metricId) {
+      metric = metricId;
       renderChartAndTable();
     }
   };
@@ -585,7 +669,7 @@ function advInitChart(wrapper, jsonUrl) {
     });
   }
 
-  /* ---------- Checkbox listener on table ---------- */
+  /* ---------- Checkbox listener on table (single select) ---------- */
 
   function connectTableCheckbox() {
     if (!tbody) return;
@@ -594,14 +678,20 @@ function advInitChart(wrapper, jsonUrl) {
       const cb = event.target.closest(".adv-channel-checkbox");
       if (!cb) return;
 
-      const checkedIds = Array.from(
-        tbody.querySelectorAll(".adv-channel-checkbox:checked")
-      ).map(function (el) { return el.getAttribute("data-adv-channel"); });
+      const channelId = cb.getAttribute("data-adv-channel");
+      if (!channelId) return;
 
-      if (checkedIds.length) {
-        selectedChannels = checkedIds;
-      } else if (jsonData && (jsonData.channels || []).length) {
-        selectedChannels = jsonData.channels.map(function (c) { return c.id; });
+      if (cb.checked) {
+        Array.prototype.slice.call(
+          tbody.querySelectorAll(".adv-channel-checkbox")
+        ).forEach(function (el) {
+          if (el !== cb) el.checked = false;
+        });
+        selectedChannels = [channelId];
+      } else {
+        // prevent zero checked, keep this one
+        cb.checked = true;
+        selectedChannels = [channelId];
       }
 
       renderChartAndTable();
@@ -638,10 +728,10 @@ function advInitChart(wrapper, jsonUrl) {
 
     const channels = jsonData.channels || [];
     if (!selectedChannels.length && channels.length) {
-      selectedChannels = channels.map(function (c) { return c.id; });
+      selectedChannels = [channels[0].id];
     }
 
-    // Chart: all companies (per selected channels, per date range)
+    // Chart: all companies (per selected channel, per date range)
     const payload = advBuildChartPayload({
       json: jsonData,
       channelIds: selectedChannels,
@@ -653,9 +743,8 @@ function advInitChart(wrapper, jsonUrl) {
 
     advRenderLineChart(canvas, payload, valueType);
 
-    // Table: per currentCompanyId
+    // Table: currentCompanyId
     if (tbody) {
-      // If company not set yet, fallback to first company of first channel
       if (!currentCompanyId && channels.length && channels[0].companies && channels[0].companies.length) {
         currentCompanyId = channels[0].companies[0].id;
       }
