@@ -425,7 +425,6 @@ function advApplyCompanySelection(item) {
     api.setCompany(value);
   }
 }
-//}
 
 // Metric dropdown
 
@@ -620,19 +619,6 @@ function advInitChart(wrapper, jsonUrl) {
   // Keep global reference for backward compatibility on pages with a single chart
   window._advCurrentChart = chartApi;
 
-selectedChannels = channelIds.slice(0, 1); // keep first only
-      }
-      renderChartAndTable();
-    },
-    setCompany: function (companyId) {
-      currentCompanyId = companyId;
-      renderChartAndTable();
-    },
-    setMetric: function (metricId) {
-      metric = metricId;
-      renderChartAndTable();
-    }
-  };
 
   /* ---------- Mode / Value switch using Webflow classes ---------- */
 
