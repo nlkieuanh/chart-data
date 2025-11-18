@@ -425,7 +425,7 @@ function advApplyCompanySelection(item) {
     api.setCompany(value);
   }
 }
-
+}
 
 // Metric dropdown
 
@@ -436,11 +436,13 @@ function advInitMetricDropdown(metrics, labelsMap) {
     var scriptHolder = wrapper.querySelector(".chart-metric-select-script");
     var listContainer = scriptHolder ? scriptHolder.parentElement : wrapper;
 
+    // Remove old dynamic items (keep the script holder)
     Array.prototype.slice.call(listContainer.children).forEach(function (child) {
       if (child === scriptHolder) return;
       listContainer.removeChild(child);
     });
 
+    // Build metric items
     metrics.forEach(function (metricId) {
       var item = document.createElement("div");
       item.className = "filter-dropdown-item";
@@ -448,13 +450,22 @@ function advInitMetricDropdown(metrics, labelsMap) {
 
       var text = document.createElement("div");
       text.className = "dropdown-item-text";
-      text.textContent = labelsMap[metricId] || metricId;
+      text.textContent = (labelsMap && labelsMap[metricId]) || metricId;
 
       item.appendChild(text);
       listContainer.appendChild(item);
     });
 
-    var label = wfunction advApplyMetricSelection(item) {
+    // Initial label
+    var label = wrapper.querySelector(".chart-metric-dd-selected");
+    if (label && metrics[0]) {
+      label.textContent = (labelsMap && labelsMap[metrics[0]]) || metrics[0];
+    }
+  });
+}
+
+
+function advApplyMetricSelection(item) {
   if (!item) return;
 
   var wrapper = item.closest(".chart-metric-dd-select");
@@ -470,7 +481,6 @@ function advInitMetricDropdown(metrics, labelsMap) {
   var tab = document.querySelector('[data-w-tab="' + value + '"]');
   if (tab) tab.click();
 
-  // Use chart API from the same card-block-wrap section if available
   var section = wrapper.closest(".card-block-wrap");
   var api = section && section._advChartApi ? section._advChartApi : window._advCurrentChart;
 
@@ -478,13 +488,6 @@ function advInitMetricDropdown(metrics, labelsMap) {
     api.setMetric(value);
   }
 }
-ab) tab.click();
-
-  if (window._advCurrentChart && typeof window._advCurrentChart.setMetric === "function") {
-    window._advCurrentChart.setMetric(value);
-  }
-}
-
 // Global click handler for company + metric dropdowns
 document.addEventListener("click", function (event) {
   var companyItem = event.target.closest(".company-dd-link-select [data-dropdown]");
