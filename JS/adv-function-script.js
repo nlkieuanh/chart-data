@@ -510,10 +510,11 @@ function advInitChart(wrapper, jsonUrl) {
     return;
   }
 
-  const table = wrapper.querySelector("#adv-channel-table");
-  const tbody = table ? table.querySelector("tbody") : null;
+  // Each chart lives inside a card-block-wrap which also contains its table
+  const card = wrapper.closest(".card-block-wrap") || document;
 
-  const card = wrapper.closest(".card-block-wrap") || wrapper;
+  const table = card.querySelector("#adv-channel-table");
+  const tbody = table ? table.querySelector("tbody") : null;
 
   // State inside this chart instance
   let jsonData = null;
