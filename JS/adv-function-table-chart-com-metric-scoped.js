@@ -425,7 +425,7 @@ function advApplyCompanySelection(item) {
     api.setCompany(value);
   }
 }
-}
+
 
 // Metric dropdown
 
