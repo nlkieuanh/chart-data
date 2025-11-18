@@ -13,7 +13,10 @@
 
 function advToISODate(d) {
   if (!(d instanceof Date)) return "";
-  return d.toISOString().split("T")[0];
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return year + "-" + month + "-" + day;
 }
 
 function advHexToRgba(hex, alpha) {
@@ -957,8 +960,10 @@ document.addEventListener("click", function (event) {
     }
 
     if (value === "lastMonth") {
-      var end2 = new Date(bounds.max.getFullYear(), bounds.max.getMonth(), 0);
-      var start2 = new Date(end2.getFullYear(), end2.getMonth(), 1);
+      // Treat "last month" as last 30 days from the max bound (inclusive)
+      var end2 = bounds.max;
+      var start2 = new Date(end2);
+      start2.setDate(start2.getDate() - 29); // 30 days window
       chartCtrl.setDateRange(advToISODate(start2), advToISODate(end2));
     }
   }
