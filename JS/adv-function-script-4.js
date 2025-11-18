@@ -911,38 +911,44 @@ window.advInitChart = advInitChart;
 })();
 
 /* ============================================================
-   11. Dynamic channel table per card (advInitTable)
+   11. Generic table per card (advInitTable) - auto from json.baseMetrics
    ============================================================ */
 
 (function () {
-  var TABLE_METRICS_CONFIG = [
-    { id: "netRevenue", label: "Net Revenue", type: "sum", key: "netRevenue" },
-    { id: "spend", label: "Spend", type: "sum", key: "spend" },
-    { id: "orders", label: "Orders", type: "sum", key: "orders" },
+  // Map metricId -> human label
+  var BASE_METRIC_LABELS = {
+    netRevenue: "Net Revenue",
+    spend: "Spend",
+    orders: "Orders",
+    newCustomers: "NC",
+    sessions: "Sessions",
+    adsLaunched: "Ads launched",
+    revenue: "Revenue",
+    revenuePerAd: "Rev / Ad",
+    roas: "ROAS"
+  };
+
+  // Optional derived metrics 
+  var DERIVED_METRICS = [
     {
       id: "cpo",
       label: "CPO",
-      type: "derived",
       deps: ["spend", "orders"],
       calc: function (ctx) {
         return ctx.orders ? ctx.spend / ctx.orders : 0;
       }
     },
-    { id: "newCustomers", label: "NC", type: "sum", key: "newCustomers" },
     {
       id: "cac",
       label: "CAC",
-      type: "derived",
       deps: ["spend", "newCustomers"],
       calc: function (ctx) {
         return ctx.newCustomers ? ctx.spend / ctx.newCustomers : 0;
       }
     },
-    { id: "sessions", label: "Sessions", type: "sum", key: "sessions" },
     {
       id: "cvr",
       label: "CVR",
-      type: "derived",
       deps: ["orders", "sessions"],
       calc: function (ctx) {
         return ctx.sessions ? (ctx.orders / ctx.sessions) * 100 : 0;
@@ -951,7 +957,6 @@ window.advInitChart = advInitChart;
     {
       id: "rps",
       label: "RPS",
-      type: "derived",
       deps: ["netRevenue", "sessions"],
       calc: function (ctx) {
         return ctx.sessions ? ctx.netRevenue / ctx.sessions : 0;
@@ -965,6 +970,52 @@ window.advInitChart = advInitChart;
       var n = Number(v) || 0;
       return acc + n;
     }, 0);
+  }
+
+  // json.baseMetrics + sample company
+  function buildMetricConfig(json) {
+    var channels = json.channels || [];
+    var companies0 = channels[0] && channels[0].companies || [];
+    var sampleCompany = companies0[0] || {};
+    var baseMetrics = Array.isArray(json.baseMetrics) ? json.baseMetrics : [];
+
+    // Base metrics
+    var baseConfigs = baseMetrics.map(function (id) {
+      return {
+        id: id,
+        label: BASE_METRIC_LABELS[id] || id,
+        type: "sum",
+        key: id
+      };
+    });
+
+    
+    var hasMetric = function (metricId) {
+      return Array.isArray(sampleCompany[metricId]);
+    };
+
+    var activeBase = baseConfigs.filter(function (conf) {
+      return hasMetric(conf.key);
+    });
+
+    var activeIds = {};
+    activeBase.forEach(function (c) { activeIds[c.id] = true; });
+
+    // Derived metrics
+    var activeDerived = DERIVED_METRICS.filter(function (dm) {
+      var deps = dm.deps || [];
+      return deps.every(function (depId) { return hasMetric(depId); });
+    }).map(function (dm) {
+      return {
+        id: dm.id,
+        label: dm.label,
+        type: "derived",
+        deps: dm.deps.slice(),
+        calc: dm.calc
+      };
+    });
+
+    return activeBase.concat(activeDerived);
   }
 
   function advInitTable(wrapper, jsonUrl) {
@@ -981,31 +1032,13 @@ window.advInitChart = advInitChart;
           return;
         }
 
-        var companiesSample = channels[0].companies || [];
-        var sampleCompany = companiesSample[0] || {};
-        var availableBase = {};
+        var metricConfig = buildMetricConfig(json);
+        if (!metricConfig.length) {
+          console.warn("[ADV] No metrics to render for table in", jsonUrl);
+          return;
+        }
 
-        TABLE_METRICS_CONFIG.forEach(function (conf) {
-          if (conf.type === "sum" && conf.key) {
-            if (Array.isArray(sampleCompany[conf.key])) {
-              availableBase[conf.id] = true;
-            }
-          }
-        });
-
-        var activeCols = TABLE_METRICS_CONFIG.filter(function (conf) {
-          if (conf.type === "sum") {
-            return !!availableBase[conf.id];
-          }
-          if (conf.type === "derived") {
-            var deps = conf.deps || [];
-            return deps.every(function (depId) {
-              return !!availableBase[depId];
-            });
-          }
-          return false;
-        });
-
+     
         var tableWrapper =
           wrapper.querySelector(".adv-channel-table-wrapper") ||
           (function () {
@@ -1026,6 +1059,7 @@ window.advInitChart = advInitChart;
 
         table.innerHTML = "";
 
+        // ===== THEAD =====
         var thead = document.createElement("thead");
         var headRow = document.createElement("tr");
 
@@ -1036,7 +1070,7 @@ window.advInitChart = advInitChart;
         thName.textContent = "Channel Name";
         headRow.appendChild(thName);
 
-        activeCols.forEach(function (conf) {
+        metricConfig.forEach(function (conf) {
           var th = document.createElement("th");
           th.textContent = conf.label;
           headRow.appendChild(th);
@@ -1045,12 +1079,12 @@ window.advInitChart = advInitChart;
         thead.appendChild(headRow);
         table.appendChild(thead);
 
+        // ===== TBODY =====
         var tbody = document.createElement("tbody");
         table.appendChild(tbody);
 
         function buildRows(companyId) {
           tbody.innerHTML = "";
-          var defaultCheckedIds = [];
 
           channels.forEach(function (channel, index) {
             var companies = channel.companies || [];
@@ -1061,40 +1095,44 @@ window.advInitChart = advInitChart;
             if (!company) return;
 
             var ctx = {};
-            TABLE_METRICS_CONFIG.forEach(function (conf) {
+
+           
+            metricConfig.forEach(function (conf) {
               if (conf.type === "sum" && conf.key && Array.isArray(company[conf.key])) {
                 ctx[conf.id] = sumArray(company[conf.key]);
               }
             });
 
-            TABLE_METRICS_CONFIG.forEach(function (conf) {
+            
+            metricConfig.forEach(function (conf) {
               if (conf.type === "derived" && typeof conf.calc === "function") {
                 ctx[conf.id] = conf.calc(ctx) || 0;
               }
             });
 
             var tr = document.createElement("tr");
-            var isCheckedDefault = index === 0;
-            if (isCheckedDefault) {
-              defaultCheckedIds.push(channel.id);
-            }
+            var isFirst = index === 0;
 
             var html =
               '<td><input type="checkbox" class="adv-channel-checkbox" data-adv-channel="' +
               channel.id +
               '"' +
-              (isCheckedDefault ? " checked" : "") +
+              (isFirst ? " checked" : "") +
               " /></td>";
 
             html += "<td>" + channel.label + "</td>";
 
-            activeCols.forEach(function (conf) {
+            metricConfig.forEach(function (conf) {
               var val = ctx[conf.id] || 0;
               var txt;
 
-              if (conf.id === "orders" || conf.id === "newCustomers" || conf.id === "sessions") {
+              
+              if (conf.id === "orders" ||
+                  conf.id === "newCustomers" ||
+                  conf.id === "sessions" ||
+                  conf.id === "adsLaunched") {
                 txt = Number(val).toLocaleString();
-              } else if (conf.id === "cvr") {
+              } else if (conf.id === "cvr" || conf.id === "roas") {
                 txt = val.toFixed(2) + "%";
               } else {
                 txt = Number(val).toFixed(2);
@@ -1107,6 +1145,7 @@ window.advInitChart = advInitChart;
             tbody.appendChild(tr);
           });
 
+      
           var ctrl = card._advController;
           if (ctrl && typeof ctrl.setChannels === "function") {
             var ids = Array.prototype.slice
@@ -1118,8 +1157,10 @@ window.advInitChart = advInitChart;
           }
         }
 
+       
         card._advRebuildTable = buildRows;
 
+        
         var selectedCompanyId = (function () {
           var companies0 = channels[0].companies || [];
           return (companies0[0] && companies0[0].id) || "your-company";
@@ -1127,6 +1168,7 @@ window.advInitChart = advInitChart;
 
         buildRows(selectedCompanyId);
 
+        // Checkbox change → update chart
         tbody.addEventListener("change", function (event) {
           var cb = event.target.closest(".adv-channel-checkbox");
           if (!cb) return;
@@ -1138,6 +1180,13 @@ window.advInitChart = advInitChart;
               .map(function (el) {
                 return el.getAttribute("data-adv-channel");
               });
+
+            if (!ids.length) {
+              var id = cb.getAttribute("data-adv-channel");
+              cb.checked = true;
+              ids = [id];
+            }
+
             ctrl.setChannels(ids);
           }
         });
