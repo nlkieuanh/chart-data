@@ -760,7 +760,6 @@ function advInitChart(wrapper, jsonUrl) {
     }
   }
 }
-
+}
 /* Expose globally */
 window.advInitChart = advInitChart;
-}
