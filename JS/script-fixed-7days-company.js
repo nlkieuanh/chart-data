@@ -1,7 +1,13 @@
 /***********************************************************
  * ADV FUNCTION TABLE + CHART (metric + company + channel)
- * Fully fixed version: tableV2 only, proper company switching,
- * no Vietnamese comments
+ * - Works with adv-channel-new.json
+ * - Chart: all companies for selected channel(s), per date range
+ * - Table: one company at a time (selected via dropdown), per date range
+ * - Shared date filter (via _advCurrentChart.setDateRange)
+ * - Shared channel selection (checkbox in table)
+ * - Metric dropdown to choose which metric to plot in chart
+ *
+ * **UPDATE:** Logic for setDateRange updated to filter both Chart and Table.
  ***********************************************************/
 
 /* ---------- Helpers ---------- */
@@ -86,27 +92,55 @@ function advGetBaseMetricsConfig(json) {
 
 function advFormatMetricValue(conf, value) {
   var v = Number(value) || 0;
-  if (!conf || !conf.format) return v.toFixed(2);
-  if (conf.format === "percent") return v.toFixed(2) + "%";
-  if (conf.format === "int") return Math.round(v).toLocaleString();
+  if (!conf || !conf.format) {
+    return v.toFixed(2);
+  }
+
+  if (conf.format === "percent") {
+    return v.toFixed(2) + "%";
+  }
+
+  if (conf.format === "int") {
+    return Math.round(v).toLocaleString();
+  }
+
+  // default: decimal
   return v.toFixed(2);
 }
 
-/* ---------- Load JSON ---------- */
+/* ============================================================
+   1. Load JSON once
+   ============================================================ */
 
 async function advLoadNewJSON(url) {
   const res = await fetch(url);
-  if (!res.ok) throw new Error("JSON fetch failed");
-  return res.json();
+  if (!res.ok) {
+    console.error("[ADV] JSON fetch failed:", res.status, res.statusText);
+    throw new Error("JSON fetch failed");
+  }
+  const json = await res.json();
+  return json;
 }
 
-/* ---------- Filter date ---------- */
+/* ============================================================
+   2. Filter date range → indexes
+   ============================================================ */
 
 function advFilterDateRange(dates, startDate, endDate) {
-  if (!Array.isArray(dates)) return [];
+  if (!Array.isArray(dates)) {
+    console.error("[ADV] advFilterDateRange: dates is not an array:", dates);
+    return [];
+  }
+
+  // Ensure startDate and endDate are valid Date objects for comparison
   const start = startDate ? new Date(startDate) : null;
   const end = endDate ? new Date(endDate) : null;
-  if (!start || !end) return dates.map((_, i) => i);
+
+  // If no date range is set, return all indexes
+  if (!start || !end) {
+    return dates.map((_, i) => i);
+  }
+
   return dates.reduce(function (acc, d, i) {
     const dd = new Date(d);
     if (dd >= start && dd <= end) acc.push(i);
@@ -114,36 +148,54 @@ function advFilterDateRange(dates, startDate, endDate) {
   }, []);
 }
 
-/* ---------- Extract metric series ---------- */
+/* ============================================================
+   3. Extract metric series
+   ============================================================ */
 
 function advGetMetricSeries(json, channelId, companyId, metric, dateIndexes) {
   const channels = json.channels || [];
   const channel = channels.find(function (c) { return c.id === channelId; });
-  if (!channel) return [];
+  if (!channel) {
+    console.warn("[ADV] Channel not found:", channelId);
+    return [];
+  }
 
   const companies = channel.companies || [];
   const company = companies.find(function (c) { return c.id === companyId; });
-  if (!company) return [];
+  if (!company) {
+    console.warn("[ADV] Company not found:", companyId, "in channel", channelId);
+    return [];
+  }
 
   const fullArray = company[metric] || [];
-  if (!Array.isArray(fullArray)) return [];
+  if (!Array.isArray(fullArray)) {
+    console.warn("[ADV] Metric array invalid for", channelId, companyId, metric);
+    return [];
+  }
+
+  // If dateIndexes is not provided or empty, return the full array
   if (!dateIndexes || !dateIndexes.length) return fullArray;
 
+  // Return the subset of the array based on dateIndexes
   return dateIndexes.map(function (i) { return fullArray[i]; });
 }
 
-/* ---------- Consolidate ---------- */
+/* ============================================================
+   4. Consolidate & percent helpers
+   ============================================================ */
 
-function advConsolidateChannels(list) {
-  if (!list.length) return [];
-  const len = list[0].length;
-  const out = new Array(len).fill(0);
-  list.forEach(function (arr) {
+function advConsolidateChannels(seriesList) {
+  if (!seriesList.length) return [];
+  const length = seriesList[0].length;
+  const result = new Array(length).fill(0);
+
+  seriesList.forEach(function (arr) {
     arr.forEach(function (v, i) {
-      out[i] += v;
+      result[i] += v;
     });
   });
-  return out;
+
+  return result;
 }
 
 function advToPercent(values, total) {
@@ -153,22 +205,25 @@ function advToPercent(values, total) {
   });
 }
 
-/* ---------- Build chart payload ---------- */
+/* ============================================================
+   5. Build payload (mode + value type, all companies)
+   ============================================================ */
 
 function advBuildChartPayload(options) {
   const json = options.json;
   const channelIds = options.channelIds;
   const dateIndexes = options.dateIndexes;
   const metric = options.metric || "netRevenue";
-  const mode = options.mode || "direct";
+  const mode = options.mode || "direct";       // direct | consolidate
   const valueType = options.valueType || "absolute";
 
   const dates = json.dates || [];
   const periods = dateIndexes.map(function (i) { return dates[i]; });
 
-  var seriesMap = {};
+  var seriesMap = {}; // key = companyId, value = { name, color, values[] }
 
   if (mode === "direct") {
+    // Direct: take the first selected channel only, all companies of that channel
     const firstChannelId = channelIds[0];
     const channel = (json.channels || []).find(function (c) { return c.id === firstChannelId; });
     if (channel) {
@@ -182,11 +237,14 @@ function advBuildChartPayload(options) {
       });
     }
   } else {
+    // Consolidate: sum across all selected channels per company
     (json.channels || []).forEach(function (ch) {
       if (channelIds.indexOf(ch.id) === -1) return;
+
       (ch.companies || []).forEach(function (comp) {
         const values = advGetMetricSeries(json, ch.id, comp.id, metric, dateIndexes);
         if (!values.length) return;
+
         if (!seriesMap[comp.id]) {
           seriesMap[comp.id] = {
             name: comp.name,
@@ -203,25 +261,38 @@ function advBuildChartPayload(options) {
     });
   }
 
-  var list = Object.keys(seriesMap).map(function (key) { return seriesMap[key]; });
+  var seriesList = Object.keys(seriesMap).map(function (key) {
+    return seriesMap[key];
+  });
 
-  if (valueType === "percent" && list.length) {
-    const len = list[0].values.length;
-    const total = new Array(len).fill(0);
-    list.forEach(function (s) {
-      s.values.forEach(function (v, i) { total[i] += v || 0; });
+  if (valueType === "percent" && seriesList.length) {
+    // Percent by day across all companies
+    const length = seriesList[0].values.length;
+    const totalPerIndex = new Array(length).fill(0);
+
+    seriesList.forEach(function (s) {
+      s.values.forEach(function (v, i) {
+        totalPerIndex[i] += v || 0;
+      });
     });
-    list = list.map(function (s) {
+
+    seriesList = seriesList.map(function (s) {
       return {
         name: s.name,
         color: s.color,
-        values: advToPercent(s.values, total)
+        values: advToPercent(s.values, totalPerIndex)
       };
     });
   }
 
-  var yourCompany = list.find(function (s) { return s.name === "Your Company"; }) || list[0] || null;
-  var competitors = yourCompany ? list.filter(function (s) { return s !== yourCompany; }) : list;
+  // Choose "Your Company" as primary if exists
+  var yourCompany = seriesList.find(function (s) { return s.name === "Your Company"; }) || seriesList[0] || null;
+  var competitors = [];
+  if (yourCompany) {
+    competitors = seriesList.filter(function (s) { return s !== yourCompany; });
+  } else {
+    competitors = seriesList;
+  }
 
   return {
     chartType: "line",
@@ -231,18 +302,26 @@ function advBuildChartPayload(options) {
   };
 }
 
-/* ---------- Render Chart.js ---------- */
+/* ============================================================
+   6. Render Chart.js
+   ============================================================ */
 
 function advRenderLineChart(canvas, payload, valueType) {
-  if (!window.Chart) return;
+  if (!window.Chart) {
+    console.error("[ADV] Chart.js is not loaded.");
+    return;
+  }
 
   const ctx = canvas.getContext("2d");
-  if (canvas._advChartInstance) canvas._advChartInstance.destroy();
+
+  if (canvas._advChartInstance) {
+    canvas._advChartInstance.destroy();
+  }
 
   const labels = payload.periods || [];
   const datasets = [];
 
-  if (payload.yourCompany && Array.isArray(payload.yourCompany.values)) {
+  if (payload.yourCompany && Array.isArray(payload.yourCompany.values) && payload.yourCompany.values.length) {
     const c = payload.yourCompany;
     datasets.push({
       label: c.name,
@@ -271,21 +350,30 @@ function advRenderLineChart(canvas, payload, valueType) {
 
   canvas._advChartInstance = new Chart(ctx, {
     type: "line",
-    data: { labels: labels, datasets: datasets },
+    data: {
+      labels: labels,
+      datasets: datasets
+    },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: { mode: "index", intersect: false },
+      interaction: {
+        mode: "index",
+        intersect: false
+      },
       plugins: {
-        legend: { position: "bottom" },
+        legend: {
+          position: "bottom"
+        },
         tooltip: {
           callbacks: {
             label: function (context) {
               const label = context.dataset.label || "";
               const v = context.parsed.y;
-              return valueType === "percent"
-                ? label + ": " + v.toFixed(1) + "%"
-                : label + ": " + v.toLocaleString();
+              if (valueType === "percent") {
+                return label + ": " + v.toFixed(1) + "%";
+              }
+              return label + ": " + v.toLocaleString();
             }
           }
         }
@@ -296,7 +384,8 @@ function advRenderLineChart(canvas, payload, valueType) {
           max: valueType === "percent" ? 100 : undefined,
           ticks: {
             callback: function (v) {
-              return valueType === "percent" ? v + "%" : v;
+              if (valueType === "percent") return v + "%";
+              return v;
             }
           }
         }
@@ -305,25 +394,247 @@ function advRenderLineChart(canvas, payload, valueType) {
   });
 }
 
-/* ---------- ADV INIT CHART: FIXED VERSION ---------- */
+/* ============================================================
+   7. Render TABLE (per company, per channel, per date range)
+   ============================================================ */
+
+function advRenderChannelTable(json, tbody, selectedChannels, dateIndexes, companyId) {
+  if (!tbody || !json) return;
+
+  var channels = json.channels || [];
+  var dates = json.dates || [];
+  if (!dates.length || !channels.length) return;
+
+  var metricsConfig = advGetBaseMetricsConfig(json);
+
+  var dateIdx = [];
+  if (Array.isArray(dateIndexes) && dateIndexes.length) {
+    dateIdx = dateIndexes.slice();
+  } else {
+    // Fallback to all dates if dateIndexes is not provided/invalid
+    dateIdx = dates.map(function (_, i) { return i; });
+  }
+
+  if (!Array.isArray(selectedChannels)) {
+    selectedChannels = [];
+  }
+
+  var rowsHtml = channels.map(function (channel, index) {
+    var companies = channel.companies || [];
+    var company =
+      companies.find(function (c) { return c.id === companyId; }) ||
+      companies.find(function (c) { return c.id === "your-company"; }) ||
+      companies[0];
+
+    if (!company) return "";
+
+    var ctx = {};
+    metricsConfig.forEach(function (conf) {
+      var arr = company[conf.key];
+      // Sử dụng dateIdx đã được filter
+      ctx[conf.id] = advSumSubset(arr, dateIdx); 
+    });
+
+    // Checkbox logic for single selection/default selection
+    var isChecked =
+      selectedChannels.length === 0
+        ? index === 0
+        : selectedChannels.indexOf(channel.id) !== -1;
+    var checkedAttr = isChecked ? " checked" : "";
+
+    var html =
+      "<tr>" +
+      '<td><input type="checkbox" class="adv-channel-checkbox" data-adv-channel="' +
+      channel.id +
+      '"' +
+      checkedAttr +
+      " /></td>" +
+      "<td>" + (channel.label || channel.id) + "</td>";
+
+    metricsConfig.forEach(function (conf) {
+      var val = ctx[conf.id] || 0;
+      html += "<td>" + advFormatMetricValue(conf, val) + "</td>";
+    });
+
+    html += "</tr>";
+    return html;
+  }).join("");
+
+  tbody.innerHTML = rowsHtml;
+}
+
+
+/* ============================================================
+   8. Company & Metric dropdowns (build items from JSON)
+   ============================================================ */
+
+function advInitCompanyDropdown(cardEl, companies) {
+  if (!Array.isArray(companies) || !companies.length) return;
+
+  cardEl.querySelectorAll(".company-dd-link-select").forEach(function (wrapper) {
+    var scriptHolder = wrapper.querySelector(".company-select-script");
+    var listContainer = scriptHolder ? scriptHolder.parentElement : wrapper;
+
+    Array.prototype.slice.call(listContainer.children).forEach(function (child) {
+      if (child === scriptHolder) return;
+      listContainer.removeChild(child);
+    });
+
+    companies.forEach(function (comp) {
+      var item = document.createElement("div");
+      item.className = "filter-dropdown-item";
+      item.setAttribute("data-dropdown", comp.id);
+
+      var text = document.createElement("div");
+      text.className = "dropdown-item-text";
+      text.textContent = comp.name;
+
+      item.appendChild(text);
+      listContainer.appendChild(item);
+    });
+
+    var label = wrapper.querySelector(".company-dd-selected");
+    if (label && companies[0]) {
+      label.textContent = companies[0].name;
+    }
+  });
+}
+
+function advApplyCompanySelection(item) {
+  if (!item) return;
+
+  var wrapper = item.closest(".company-dd-link-select");
+  if (!wrapper) return;
+
+  var value = item.getAttribute("data-dropdown");
+  var textEl = item.querySelector(".dropdown-item-text") || item;
+  var selectedText = (textEl.textContent || "").trim();
+
+  var target = wrapper.querySelector(".company-dd-selected");
+  if (target) target.textContent = selectedText;
+
+  var tab = document.querySelector('[data-w-tab="' + value + '"]');
+  if (tab) tab.click();
+
+  var card = wrapper.closest(".card-block-wrap");
+  var ctrl = card && card._advController;
+  if (ctrl && typeof ctrl.setCompany === "function") {
+    ctrl.setCompany(value);
+  }
+
+  // NOTE: advInitChart now handles calling renderChartAndTable/rebuildTable internally
+  // The global advInitTable will expose _advRebuildTable on the card
+  // if (card && typeof card._advRebuildTable === "function") {
+  //   card._advRebuildTable(value);
+  // }
+}
+
+// Metric dropdown
+
+function advInitMetricDropdown(cardEl, metrics, labelsMap) {
+  if (!Array.isArray(metrics) || !metrics.length) return;
+
+  cardEl.querySelectorAll(".chart-metric-dd-select").forEach(function (wrapper) {
+    var scriptHolder = wrapper.querySelector(".chart-metric-select-script");
+    var listContainer = scriptHolder ? scriptHolder.parentElement : wrapper;
+
+    Array.prototype.slice.call(listContainer.children).forEach(function (child) {
+      if (child === scriptHolder) return;
+      listContainer.removeChild(child);
+    });
+
+    metrics.forEach(function (metricId) {
+      var item = document.createElement("div");
+      item.className = "filter-dropdown-item";
+      item.setAttribute("data-dropdown", metricId);
+
+      var text = document.createElement("div");
+      text.className = "dropdown-item-text";
+      text.textContent = labelsMap[metricId] || metricId;
+
+      item.appendChild(text);
+      listContainer.appendChild(item);
+    });
+
+    var label = wrapper.querySelector(".chart-metric-dd-selected");
+    if (label && metrics[0]) {
+      label.textContent = labelsMap[metrics[0]] || metrics[0];
+    }
+  });
+}
+
+function advApplyMetricSelection(item) {
+  if (!item) return;
+
+  var wrapper = item.closest(".chart-metric-dd-select");
+  if (!wrapper) return;
+
+  var value = item.getAttribute("data-dropdown");
+  var textEl = item.querySelector(".dropdown-item-text") || item;
+  var selectedText = (textEl.textContent || "").trim();
+
+  var target = wrapper.querySelector(".chart-metric-dd-selected");
+  if (target) target.textContent = selectedText;
+
+  var tab = document.querySelector('[data-w-tab="' + value + '"]');
+  if (tab) tab.click();
+
+  var card = wrapper.closest(".card-block-wrap");
+  var ctrl = card && card._advController;
+  if (ctrl && typeof ctrl.setMetric === "function") {
+    ctrl.setMetric(value);
+  }
+}
+
+// Global click handler for company + metric dropdowns
+document.addEventListener("click", function (event) {
+  var companyItem = event.target.closest(".company-dd-link-select [data-dropdown]");
+  if (companyItem) {
+    advApplyCompanySelection(companyItem);
+    var dd1 = companyItem.closest(".dropdown, .w-dropdown");
+    if (dd1 && window.$) {
+      $(dd1).triggerHandler("w-close.w-dropdown");
+    }
+    return;
+  }
+
+  var metricItem = event.target.closest(".chart-metric-dd-select [data-dropdown]");
+  if (metricItem) {
+    advApplyMetricSelection(metricItem);
+    var dd2 = metricItem.closest(".dropdown, .w-dropdown");
+    if (dd2 && window.$) {
+      $(dd2).triggerHandler("w-close.w-dropdown");
+    }
+  }
+});
+
+/* ============================================================
+   9. Init chart + table (Webflow entry)
+   ============================================================ */
 
 function advInitChart(wrapper, jsonUrl) {
   const canvas = wrapper.querySelector("canvas");
-  if (!canvas) return;
+  if (!canvas) {
+    console.error("[ADV] Canvas not found inside wrapper.");
+    return;
+  }
 
   const card = wrapper.closest(".card-block-wrap") || document;
+
   const table = card.querySelector(".adv-channel-table") || card.querySelector("#adv-channel-table");
   const tbody = table ? table.querySelector("tbody") : null;
 
+  // State inside this chart instance
   let jsonData = null;
-  let selectedChannels = [];
+  let selectedChannels = [];     // single channel at a time
   let startDate = null;
   let endDate = null;
   let metric = "netRevenue";
-  let mode = "direct";
-  let valueType = "absolute";
-  let currentCompanyId = null;
+  let mode = "direct";           // direct | consolidate
+  let valueType = "absolute";    // absolute | percent
+  let currentCompanyId = null;   // for table only
 
+  // Helper to get default date range (last 7 days of the data)
   function getDefaultDateRange(dates) {
     if (!dates || !dates.length) return { start: null, end: null };
     const endObj = new Date(dates[dates.length - 1]);
@@ -338,38 +649,48 @@ function advInitChart(wrapper, jsonUrl) {
   advLoadNewJSON(jsonUrl)
     .then(function (json) {
       jsonData = json;
+
       const allDates = jsonData.dates || [];
       const channels = jsonData.channels || [];
-      if (!allDates.length || !channels.length) return;
+      if (!allDates.length || !channels.length) {
+        console.error("[ADV] json.dates or json.channels is missing/empty in", jsonUrl);
+        return;
+      }
 
+      // 1. Set default date range
       const defaultRange = getDefaultDateRange(allDates);
       startDate = defaultRange.start;
       endDate = defaultRange.end;
 
+      // 2. Save bounds for external date UI
       card._advDateBounds = {
         min: allDates[0],
         max: allDates[allDates.length - 1]
       };
 
+      // 3. Company list from first channel
       const firstChannel = channels[0];
-      if (firstChannel && firstChannel.companies && firstChannel.companies.length) {
-        const list = firstChannel.companies.map(function (c) {
+      if (firstChannel && Array.isArray(firstChannel.companies) && firstChannel.companies.length) {
+        const companyList = firstChannel.companies.map(function (c) {
           return { id: c.id, name: c.name };
         });
-        advInitCompanyDropdown(card, list);
-        if (!currentCompanyId) currentCompanyId = list[0].id;
+        advInitCompanyDropdown(card, companyList);
+        if (!currentCompanyId) {
+          currentCompanyId = companyList[0].id;
+        }
       }
 
+      // 4. Metric list
       var metricList = [];
-      if (jsonData.baseMetrics && jsonData.baseMetrics.length) {
+      if (Array.isArray(jsonData.baseMetrics) && jsonData.baseMetrics.length) {
         metricList = jsonData.baseMetrics.slice();
-      } else if (firstChannel && firstChannel.companies[0]) {
-        metricList = Object.keys(firstChannel.companies[0]).filter(function (k) {
-          return Array.isArray(firstChannel.companies[0][k]);
+      } else if (firstChannel && firstChannel.companies && firstChannel.companies[0]) {
+        metricList = Object.keys(firstChannel.companies[0]).filter(function (key) {
+          return Array.isArray(firstChannel.companies[0][key]);
         });
       }
 
-      var labels = {
+      var metricLabels = {
         netRevenue: "Net Revenue",
         spend: "Spend",
         orders: "Orders",
@@ -378,52 +699,56 @@ function advInitChart(wrapper, jsonUrl) {
       };
 
       if (metricList.length) {
-        advInitMetricDropdown(card, metricList, labels);
-        if (metricList.indexOf(metric) === -1) metric = metricList[0];
+        advInitMetricDropdown(card, metricList, metricLabels);
+        if (metricList.indexOf(metric) === -1) {
+          metric = metricList[0];
+        }
       }
 
+      // 5. Default selected channel = first channel only
       selectedChannels = [channels[0].id];
 
-      renderChartOnly();
+      // 6. Initial render and bindings
+      renderChartAndTable(); // Use default range set above
       connectTableCheckbox();
       connectModeSwitch();
+    })
+    .catch(function (err) {
+      console.error("[ADV] Failed to load JSON:", err);
     });
 
-  function renderChartOnly() {
-    if (!jsonData) return;
-    const allDates = jsonData.dates || [];
-    const dateIndexes = advFilterDateRange(allDates, startDate, endDate);
-    if (!selectedChannels.length && jsonData.channels.length) {
-      selectedChannels = [jsonData.channels[0].id];
-    }
-    const payload = advBuildChartPayload({
-      json: jsonData,
-      channelIds: selectedChannels,
-      dateIndexes: dateIndexes,
-      metric: metric,
-      mode: mode,
-      valueType: valueType
-    });
-    advRenderLineChart(canvas, payload, valueType);
-  }
-
+  // Expose controller for external UI (date + channels + company + metric) - scoped per card
   const controller = {
+    // --- EDITED FOR DATE RANGE FILTERING BOTH CHART AND TABLE ---
     setDateRange: function (start, end) {
       if (start) startDate = start;
       if (end) endDate = end;
-      if (!jsonData) return;
+
+      if (!jsonData) return; // Must have data loaded
+
       const allDates = jsonData.dates || [];
+      if (!allDates.length) return;
+
+      // 1. Calculate new date indexes
       const dateIndexes = advFilterDateRange(allDates, startDate, endDate);
-      renderChartOnly();
+      
+      // 2. Render Chart (uses current state: metric, mode, valueType, selectedChannels)
+      renderChart(dateIndexes);
+
+      // 3. Rebuild Table (uses current state: currentCompanyId, selectedChannels)
       if (typeof card._advRebuildTable === "function") {
-        card._advRebuildTable(currentCompanyId, dateIndexes, selectedChannels);
+          // Pass currentCompanyId and the new dateIndexes
+          card._advRebuildTable(currentCompanyId, dateIndexes, selectedChannels);
       }
     },
-    setChannels: function (arr) {
-      if (Array.isArray(arr) && arr.length) selectedChannels = arr.slice(0, 1);
-      renderChartOnly();
+    // -------------------------------------------------------------------
+    setChannels: function (channelIds) {
+      if (Array.isArray(channelIds) && channelIds.length) {
+        selectedChannels = channelIds.slice(0, 1); // keep first only
+      }
+      renderChartAndTable();
     },
-    setCompany: function (companyId) {
+   setCompany: function (companyId) {
   currentCompanyId = companyId;
 
   if (!jsonData) return;
@@ -436,13 +761,16 @@ function advInitChart(wrapper, jsonUrl) {
     card._advRebuildTable(companyId, dateIndexes, selectedChannels);
   }
 },
+
     setMetric: function (metricId) {
       metric = metricId;
-      renderChartOnly();
+      renderChartAndTable();
     }
   };
 
   card._advController = controller;
+
+  /* ---------- Mode / Value switch using Webflow classes ---------- */
 
   function connectModeSwitch() {
     const modeWrapper = wrapper.querySelector(".chart-switch-mode-btn");
@@ -455,18 +783,16 @@ function advInitChart(wrapper, jsonUrl) {
       if (btnDirect) {
         btnDirect.addEventListener("click", function () {
           mode = "direct";
-          btnDirect.classList.add("is-active");
-          btnConsolidate.classList.remove("is-active");
-          renderChartOnly();
+          setActive(btnDirect, [btnConsolidate]);
+          renderChartAndTable();
         });
       }
 
       if (btnConsolidate) {
         btnConsolidate.addEventListener("click", function () {
           mode = "consolidate";
-          btnConsolidate.classList.add("is-active");
-          btnDirect.classList.remove("is-active");
-          renderChartOnly();
+          setActive(btnConsolidate, [btnDirect]);
+          renderChartAndTable();
         });
       }
     }
@@ -478,22 +804,30 @@ function advInitChart(wrapper, jsonUrl) {
       if (btnAbsolute) {
         btnAbsolute.addEventListener("click", function () {
           valueType = "absolute";
-          btnAbsolute.classList.add("is-active");
-          btnPercent.classList.remove("is-active");
-          renderChartOnly();
+          setActive(btnAbsolute, [btnPercent]);
+          renderChartAndTable();
         });
       }
 
       if (btnPercent) {
         btnPercent.addEventListener("click", function () {
           valueType = "percent";
-          btnPercent.classList.add("is-active");
-          btnAbsolute.classList.remove("is-active");
-          renderChartOnly();
+          setActive(btnPercent, [btnAbsolute]);
+          renderChartAndTable();
         });
       }
     }
   }
+
+  function setActive(activeEl, others) {
+    if (!activeEl) return;
+    activeEl.classList.add("is-active");
+    (others || []).forEach(function (el) {
+      if (el) el.classList.remove("is-active");
+    });
+  }
+
+  /* ---------- Checkbox listener on table (single select) ---------- */
 
   function connectTableCheckbox() {
     if (!tbody) return;
@@ -501,6 +835,7 @@ function advInitChart(wrapper, jsonUrl) {
     tbody.addEventListener("change", function (event) {
       var cb = event.target.closest(".adv-channel-checkbox");
       if (!cb) return;
+
       var channelId = cb.getAttribute("data-adv-channel");
       if (!channelId) return;
 
@@ -509,18 +844,24 @@ function advInitChart(wrapper, jsonUrl) {
       );
 
       if (cb.checked) {
+        // Single select: keep only this checkbox checked
         boxes.forEach(function (el) {
           el.checked = el === cb;
         });
         selectedChannels = [channelId];
       } else {
+        // User unchecked this checkbox
+        // Check if there is any other checkbox still checked
         var stillChecked = boxes.filter(function (el) {
           return el.checked;
         });
+
         if (stillChecked.length) {
+          // If there is another checked box, use its ID
           var id = stillChecked[0].getAttribute("data-adv-channel");
           selectedChannels = id ? [id] : [];
         } else {
+          // No checkbox checked -> fallback to default (first row)
           var first = boxes[0];
           if (first) {
             first.checked = true;
@@ -531,21 +872,85 @@ function advInitChart(wrapper, jsonUrl) {
           }
         }
       }
-      renderChartOnly();
+
+      // Only re-render chart, as table rendering is managed by _advRebuildTable on company selection
+      renderChartAndTable();
     });
+  }
+
+  /* ---------- Render Chart function (can be called independently) ---------- */
+  function renderChart(dateIndexes) {
+     if (!jsonData || !dateIndexes || !dateIndexes.length) return;
+
+     // Chart: all companies (per selected channel, per date range)
+     const payload = advBuildChartPayload({
+       json: jsonData,
+       channelIds: selectedChannels,
+       dateIndexes: dateIndexes,
+       metric: metric,
+       mode: mode,
+       valueType: valueType
+     });
+
+     advRenderLineChart(canvas, payload, valueType);
+  }
+
+  /* ---------- Render with current state (for all triggers except date-range dropdown) ---------- */
+
+  function renderChartAndTable() {
+    if (!jsonData) return;
+
+    const allDates = jsonData.dates || [];
+    if (!allDates.length) {
+      console.error("[ADV] json.dates is missing or empty.");
+      return;
+    }
+
+    // Use current state (startDate, endDate) which defaults to last 7 days on load
+    let s = startDate;
+    let e = endDate;
+
+    const dateIndexes = advFilterDateRange(allDates, s, e);
+    if (!dateIndexes.length) {
+      console.warn("[ADV] No dates in selected range:", s, "→", e);
+      // Still attempt to render table with full data if chart fails
+    }
+
+    const channels = jsonData.channels || [];
+    if (!selectedChannels.length && channels.length) {
+      selectedChannels = [channels[0].id];
+    }
+
+    // Chart: all companies (per selected channel, per date range)
+    renderChart(dateIndexes);
+
+    // Table: currentCompanyId
+    if (tbody) {
+      if (!currentCompanyId && channels.length && channels[0].companies && channels[0].companies.length) {
+        currentCompanyId = channels[0].companies[0].id;
+      }
+      // Use advRenderChannelTable which uses the calculated dateIndexes
+      advRenderChannelTable(jsonData, tbody, selectedChannels, dateIndexes, currentCompanyId);
+    }
   }
 }
 
+/* Expose globally */
 window.advInitChart = advInitChart;
 
-/* ---------- DATE RANGE UI ---------- */
+/* ============================================================
+   10. Date-range dropdown (flatpickr) scoped per card
+   ============================================================ */
 
 (function () {
   function getBoundsOrFallback(wrapper) {
     var card = wrapper.closest(".card-block-wrap");
     var bounds = card && card._advDateBounds;
     if (bounds && bounds.min && bounds.max) {
-      return { min: new Date(bounds.min), max: new Date(bounds.max) };
+      return {
+        min: new Date(bounds.min),
+        max: new Date(bounds.max)
+      };
     }
     var now = new Date();
     return {
@@ -570,27 +975,31 @@ window.advInitChart = advInitChart;
     var selectedText = (textEl.textContent || "").trim();
 
     var labelEl = wrapper.querySelector(".date-range-dd-selected");
-    if (labelEl && selectedText) labelEl.textContent = selectedText;
+    if (labelEl && selectedText) {
+      labelEl.textContent = selectedText;
+    }
 
     var tab = document.querySelector('[data-w-tab="' + value + '"]');
     if (tab) tab.click();
 
-    var ctrl = getController(wrapper);
+    var chartCtrl = getController(wrapper);
     var bounds = getBoundsOrFallback(wrapper);
-    if (!ctrl) return;
+    if (!chartCtrl) return;
 
     if (value === "default") {
+      // Default: Last 7 days from max bound
       var end = bounds.max;
       var start = new Date(end);
       start.setDate(start.getDate() - 6);
-      ctrl.setDateRange(advToISODate(start), advToISODate(end));
+      chartCtrl.setDateRange(advToISODate(start), advToISODate(end));
     }
 
     if (value === "lastMonth") {
+      // Last 30 days from the max bound (inclusive)
       var end2 = bounds.max;
       var start2 = new Date(end2);
       start2.setDate(start2.getDate() - 29);
-      ctrl.setDateRange(advToISODate(start2), advToISODate(end2));
+      chartCtrl.setDateRange(advToISODate(start2), advToISODate(end2));
     }
   }
 
@@ -600,37 +1009,42 @@ window.advInitChart = advInitChart;
     if (!wrapper) return;
 
     var labelEl = wrapper.querySelector(".date-range-dd-selected");
-    var ctrl = getController(wrapper);
+    var chartCtrl = getController(wrapper);
     if (!labelEl) return;
+
     if (!selectedDates || selectedDates.length === 0) return;
 
-    var opt = { day: "2-digit", month: "short", year: "numeric" };
+    var fmtOptions = { day: "2-digit", month: "short", year: "numeric" };
 
     if (selectedDates.length === 1) {
-      var t = selectedDates[0].toLocaleDateString(undefined, opt);
-      labelEl.textContent = t + " …";
+      var singleText = selectedDates[0].toLocaleDateString(undefined, fmtOptions);
+      labelEl.textContent = singleText + " …";
       return;
     }
 
-    var s = selectedDates[0];
-    var e = selectedDates[1];
-    var st = s.toLocaleDateString(undefined, opt);
-    var et = e.toLocaleDateString(undefined, opt);
-    labelEl.textContent = st + " – " + et;
+    var start = selectedDates[0];
+    var end = selectedDates[1];
+    var startText = start.toLocaleDateString(undefined, fmtOptions);
+    var endText = end.toLocaleDateString(undefined, fmtOptions);
+    labelEl.textContent = startText + " – " + endText;
 
-    if (ctrl) ctrl.setDateRange(advToISODate(s), advToISODate(e));
+    if (chartCtrl) {
+      chartCtrl.setDateRange(advToISODate(start), advToISODate(end));
+    }
   }
 
   document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll(".date-range-dd-select").forEach(function (wrapper) {
-      var def =
+      var defItem =
         wrapper.querySelector('[data-dropdown="default"]') ||
         wrapper.querySelector("[data-dropdown]");
 
-      if (def) {
-        var t = def.querySelector(".dropdown-item-text") || def;
-        var label = wrapper.querySelector(".date-range-dd-selected");
-        if (label && t) label.textContent = (t.textContent || "").trim();
+      if (defItem) {
+        var textEl = defItem.querySelector(".dropdown-item-text") || defItem;
+        var labelEl = wrapper.querySelector(".date-range-dd-selected");
+        if (labelEl && textEl) {
+          labelEl.textContent = (textEl.textContent || "").trim();
+        }
       }
 
       var input =
@@ -650,17 +1064,23 @@ window.advInitChart = advInitChart;
     });
   });
 
-  document.addEventListener("click", function (e) {
-    var item = e.target.closest(".date-range-dd-select [data-dropdown]");
+  document.addEventListener("click", function (event) {
+    var item = event.target.closest(".date-range-dd-select [data-dropdown]");
     if (!item) return;
     if (item.tagName === "INPUT" || item.tagName === "TEXTAREA") return;
+
     applyDateRangeSelection(item);
+
     var dd = item.closest(".dropdown, .w-dropdown");
-    if (dd && window.$) $(dd).triggerHandler("w-close.w-dropdown");
+    if (dd && window.$) {
+      $(dd).triggerHandler("w-close.w-dropdown");
+    }
   });
 })();
 
-/* ---------- ADV INIT TABLE ---------- */
+/* ============================================================
+   11. Dynamic channel table per card (advInitTable, baseMetrics-driven)
+   ============================================================ */
 
 (function () {
   function advInitTable(wrapper, jsonUrl) {
@@ -672,13 +1092,20 @@ window.advInitChart = advInitChart;
       .then(function (res) { return res.json(); })
       .then(function (json) {
         var channels = json.channels || [];
-        if (!channels.length) return;
+        if (!channels.length) {
+          console.warn("[ADV] No channels in JSON:", jsonUrl);
+          return;
+        }
 
         var metricsConfig = advGetBaseMetricsConfig(json);
-        if (!metricsConfig.length) return;
+        if (!metricsConfig.length) {
+          console.warn("[ADV] No base metrics in JSON:", jsonUrl);
+          return;
+        }
 
         var tableWrapper =
-          wrapper.querySelector(".adv-channel-table-wrapper") || wrapper;
+          wrapper.querySelector(".adv-channel-table-wrapper") ||
+          wrapper;
 
         var table =
           tableWrapper.querySelector(".adv-channel-table") ||
@@ -694,12 +1121,12 @@ window.advInitChart = advInitChart;
         var thead = document.createElement("thead");
         var headRow = document.createElement("tr");
 
-        var th0 = document.createElement("th");
-        headRow.appendChild(th0);
+        var thEmpty = document.createElement("th");
+        headRow.appendChild(thEmpty);
 
-        var th1 = document.createElement("th");
-        th1.textContent = "Channel";
-        headRow.appendChild(th1);
+        var thName = document.createElement("th");
+        thName.textContent = "Channel";
+        headRow.appendChild(thName);
 
         metricsConfig.forEach(function (conf) {
           var th = document.createElement("th");
@@ -715,32 +1142,32 @@ window.advInitChart = advInitChart;
 
         var dates = json.dates || [];
         var end = new Date(dates[dates.length - 1]);
-        var start = new Date(end);
-        start.setDate(start.getDate() - 6);
-        var defaultIndexes = dates.reduce(function (acc, d, i) {
-          var dd = new Date(d);
-          if (dd >= start && dd <= end) acc.push(i);
-          return acc;
-        }, []);
+var start = new Date(end); start.setDate(start.getDate() - 6);
+var defaultIndexes = dates.reduce(function(acc, d, i){
+  var dd = new Date(d);
+  if(dd >= start && dd <= end) acc.push(i);
+  return acc;
+},[]);
+        var currentSelectedChannels = []; // Track channels on this table
 
-        var currentSelectedChannels = [];
-
+        // Rebuild function exposed to the controller
         function buildRows(companyId, customIndexes, selectedChannels) {
           var dateIndexes =
             Array.isArray(customIndexes) && customIndexes.length
               ? customIndexes
               : defaultIndexes;
-
+          
           currentSelectedChannels = selectedChannels || [];
 
           tbody.innerHTML = "";
-          var checkedIds = [];
+          var defaultCheckedIds = [];
 
           channels.forEach(function (channel, index) {
             var companies = channel.companies || [];
             var company =
               companies.find(function (c) { return c.id === companyId; }) ||
               companies[0];
+
             if (!company) return;
 
             var ctx = {};
@@ -749,15 +1176,16 @@ window.advInitChart = advInitChart;
               ctx[conf.id] = advSumSubset(arr, dateIndexes);
             });
 
-            var isChecked =
-              (currentSelectedChannels.length === 0 && index === 0) ||
-              currentSelectedChannels.indexOf(channel.id) !== -1;
-
-            if (isChecked && checkedIds.indexOf(channel.id) === -1) {
-              checkedIds.push(channel.id);
+            // Re-apply correct checkbox state based on chart's current selection
+            var isChecked = (currentSelectedChannels.length === 0 && index === 0) || 
+                            currentSelectedChannels.indexOf(channel.id) !== -1;
+            
+            if (isChecked && defaultCheckedIds.indexOf(channel.id) === -1) {
+              defaultCheckedIds.push(channel.id);
             }
 
             var tr = document.createElement("tr");
+
             var html =
               '<td><input type="checkbox" class="adv-channel-checkbox" data-adv-channel="' +
               channel.id +
@@ -768,28 +1196,35 @@ window.advInitChart = advInitChart;
             html += "<td>" + (channel.label || channel.id) + "</td>";
 
             metricsConfig.forEach(function (conf) {
-              var v = ctx[conf.id] || 0;
-              html += "<td>" + advFormatMetricValue(conf, v) + "</td>";
+              var val = ctx[conf.id] || 0;
+              html += "<td>" + advFormatMetricValue(conf, val) + "</td>";
             });
 
             tr.innerHTML = html;
             tbody.appendChild(tr);
           });
 
+          // If called from setCompany/setDateRange, ensure chart controller knows the channel selection
           var ctrl = card._advController;
-          if (ctrl && typeof ctrl.setChannels === "function" && checkedIds.length) {
-            ctrl.setChannels(checkedIds);
+          if (ctrl && typeof ctrl.setChannels === "function" && defaultCheckedIds.length) {
+            // NOTE: setChannels will usually limit to the first ID (single-select chart logic)
+            ctrl.setChannels(defaultCheckedIds);
           }
         }
 
+        // --- EDITED: Expose the Rebuild function ---
         card._advRebuildTable = buildRows;
 
-        var defaultCompany = (function () {
-          var c0 = channels[0].companies || [];
-          return (c0[0] && c0[0].id) || "your-company";
+        var selectedCompanyId = (function () {
+          var companies0 = channels[0].companies || [];
+          return (companies0[0] && companies0[0].id) || "your-company";
         })();
 
-        buildRows(defaultCompany, defaultIndexes, [channels[0].id]);
+        // Initial render: uses full date range, first company
+        buildRows(selectedCompanyId, defaultIndexes, [channels[0].id]);
+      })
+      .catch(function (err) {
+        console.error("[ADV] Failed to init table:", err);
       });
   }
 
