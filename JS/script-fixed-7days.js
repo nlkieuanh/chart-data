@@ -1131,19 +1131,13 @@ window.advInitChart = advInitChart;
         table.appendChild(tbody);
 
         var dates = json.dates || [];
-
-        var defaultIndexes;
-        var card = wrapper.closest(".card-block-wrap");
-        if (card && card._advDateBounds) {
-        // use bounds.min → bounds.max for default = last 7 days
-        const min = card._advDateBounds.min;
-        const max = card._advDateBounds.max;
-
-        const idx = advFilterDateRange(dates, min, max);
-        defaultIndexes = idx.length ? idx : dates.map((_, i) => i);
-        } else {
-            defaultIndexes = dates.map((_, i) => i);
-        }
+        var end = new Date(dates[dates.length - 1]);
+var start = new Date(end); start.setDate(start.getDate() - 6);
+var defaultIndexes = dates.reduce(function(acc, d, i){
+  var dd = new Date(d);
+  if(dd >= start && dd <= end) acc.push(i);
+  return acc;
+},[]);
         var currentSelectedChannels = []; // Track channels on this table
 
         // Rebuild function exposed to the controller
