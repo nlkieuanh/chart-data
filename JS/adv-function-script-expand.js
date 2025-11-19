@@ -7,7 +7,7 @@
  * - Shared channel selection (checkbox in table)
  * - Metric dropdown to choose which metric to plot in chart
  *
- * **UPDATE:** Logic for setDateRange updated to filter both Chart and Table.
+ * **UPDATE:** Fixed company filter by ensuring all table updates use card._advRebuildTable for consistency.
  ***********************************************************/
 
 /* ---------- Helpers ---------- */
@@ -395,74 +395,8 @@ function advRenderLineChart(canvas, payload, valueType) {
 }
 
 /* ============================================================
-   7. Render TABLE (per company, per channel, per date range)
+   7. *** REMOVED: advRenderChannelTable is replaced by advInitTable's buildRows ***
    ============================================================ */
-
-function advRenderChannelTable(json, tbody, selectedChannels, dateIndexes, companyId) {
-  if (!tbody || !json) return;
-
-  var channels = json.channels || [];
-  var dates = json.dates || [];
-  if (!dates.length || !channels.length) return;
-
-  var metricsConfig = advGetBaseMetricsConfig(json);
-
-  var dateIdx = [];
-  if (Array.isArray(dateIndexes) && dateIndexes.length) {
-    dateIdx = dateIndexes.slice();
-  } else {
-    // Fallback to all dates if dateIndexes is not provided/invalid
-    dateIdx = dates.map(function (_, i) { return i; });
-  }
-
-  if (!Array.isArray(selectedChannels)) {
-    selectedChannels = [];
-  }
-
-  var rowsHtml = channels.map(function (channel, index) {
-    var companies = channel.companies || [];
-    var company =
-      companies.find(function (c) { return c.id === companyId; }) ||
-      companies.find(function (c) { return c.id === "your-company"; }) ||
-      companies[0];
-
-    if (!company) return "";
-
-    var ctx = {};
-    metricsConfig.forEach(function (conf) {
-      var arr = company[conf.key];
-      // Sử dụng dateIdx đã được filter
-      ctx[conf.id] = advSumSubset(arr, dateIdx); 
-    });
-
-    // Checkbox logic for single selection/default selection
-    var isChecked =
-      selectedChannels.length === 0
-        ? index === 0
-        : selectedChannels.indexOf(channel.id) !== -1;
-    var checkedAttr = isChecked ? " checked" : "";
-
-    var html =
-      "<tr>" +
-      '<td><input type="checkbox" class="adv-channel-checkbox" data-adv-channel="' +
-      channel.id +
-      '"' +
-      checkedAttr +
-      " /></td>" +
-      "<td>" + (channel.label || channel.id) + "</td>";
-
-    metricsConfig.forEach(function (conf) {
-      var val = ctx[conf.id] || 0;
-      html += "<td>" + advFormatMetricValue(conf, val) + "</td>";
-    });
-
-    html += "</tr>";
-    return html;
-  }).join("");
-
-  tbody.innerHTML = rowsHtml;
-}
-
 
 /* ============================================================
    8. Company & Metric dropdowns (build items from JSON)
@@ -521,12 +455,6 @@ function advApplyCompanySelection(item) {
   if (ctrl && typeof ctrl.setCompany === "function") {
     ctrl.setCompany(value);
   }
-
-  // NOTE: advInitChart now handles calling renderChartAndTable/rebuildTable internally
-  // The global advInitTable will expose _advRebuildTable on the card
-  // if (card && typeof card._advRebuildTable === "function") {
-  //   card._advRebuildTable(value);
-  // }
 }
 
 // Metric dropdown
@@ -620,9 +548,6 @@ function advInitChart(wrapper, jsonUrl) {
   }
 
   const card = wrapper.closest(".card-block-wrap") || document;
-
-  const table = card.querySelector(".adv-channel-table") || card.querySelector("#adv-channel-table");
-  const tbody = table ? table.querySelector("tbody") : null;
 
   // State inside this chart instance
   let jsonData = null;
@@ -719,12 +644,11 @@ function advInitChart(wrapper, jsonUrl) {
 
   // Expose controller for external UI (date + channels + company + metric) - scoped per card
   const controller = {
-    // --- EDITED FOR DATE RANGE FILTERING BOTH CHART AND TABLE ---
     setDateRange: function (start, end) {
       if (start) startDate = start;
       if (end) endDate = end;
 
-      if (!jsonData) return; // Must have data loaded
+      if (!jsonData) return; 
 
       const allDates = jsonData.dates || [];
       if (!allDates.length) return;
@@ -732,16 +656,13 @@ function advInitChart(wrapper, jsonUrl) {
       // 1. Calculate new date indexes
       const dateIndexes = advFilterDateRange(allDates, startDate, endDate);
       
-      // 2. Render Chart (uses current state: metric, mode, valueType, selectedChannels)
       renderChart(dateIndexes);
 
-      // 3. Rebuild Table (uses current state: currentCompanyId, selectedChannels)
+      // 2. Rebuild Table: USE EXPOSED FUNCTION for consistency
       if (typeof card._advRebuildTable === "function") {
-          // Pass currentCompanyId and the new dateIndexes
           card._advRebuildTable(currentCompanyId, dateIndexes, selectedChannels);
       }
     },
-    // -------------------------------------------------------------------
     setChannels: function (channelIds) {
       if (Array.isArray(channelIds) && channelIds.length) {
         selectedChannels = channelIds.slice(0, 1); // keep first only
@@ -750,6 +671,7 @@ function advInitChart(wrapper, jsonUrl) {
     },
     setCompany: function (companyId) {
       currentCompanyId = companyId;
+      // renderChartAndTable will now handle table update via _advRebuildTable
       renderChartAndTable();
     },
     setMetric: function (metricId) {
@@ -820,6 +742,10 @@ function advInitChart(wrapper, jsonUrl) {
   /* ---------- Checkbox listener on table (single select) ---------- */
 
   function connectTableCheckbox() {
+    // Find tbody dynamically using the card wrapper
+    const table = card.querySelector(".adv-channel-table") || card.querySelector("#adv-channel-table");
+    const tbody = table ? table.querySelector("tbody") : null;
+    
     if (!tbody) return;
 
     tbody.addEventListener("change", function (event) {
@@ -841,7 +767,6 @@ function advInitChart(wrapper, jsonUrl) {
         selectedChannels = [channelId];
       } else {
         // User unchecked this checkbox
-        // Check if there is any other checkbox still checked
         var stillChecked = boxes.filter(function (el) {
           return el.checked;
         });
@@ -859,11 +784,10 @@ function advInitChart(wrapper, jsonUrl) {
             selectedChannels = firstId ? [firstId] : [];
           } else {
             selectedChannels = [];
-          }
+        }
         }
       }
 
-      // Only re-render chart, as table rendering is managed by _advRebuildTable on company selection
       renderChartAndTable();
     });
   }
@@ -903,7 +827,6 @@ function advInitChart(wrapper, jsonUrl) {
     const dateIndexes = advFilterDateRange(allDates, s, e);
     if (!dateIndexes.length) {
       console.warn("[ADV] No dates in selected range:", s, "→", e);
-      // Still attempt to render table with full data if chart fails
     }
 
     const channels = jsonData.channels || [];
@@ -915,13 +838,15 @@ function advInitChart(wrapper, jsonUrl) {
     renderChart(dateIndexes);
 
     // Table: currentCompanyId
-    if (tbody) {
-      if (!currentCompanyId && channels.length && channels[0].companies && channels[0].companies.length) {
-        currentCompanyId = channels[0].companies[0].id;
-      }
-      // Use advRenderChannelTable which uses the calculated dateIndexes
-      advRenderChannelTable(jsonData, tbody, selectedChannels, dateIndexes, currentCompanyId);
+    // *** MODIFIED: Use the exposed _advRebuildTable function for consistent updates ***
+    if (typeof card._advRebuildTable === "function") {
+        if (!currentCompanyId && channels.length && channels[0].companies && channels[0].companies.length) {
+            currentCompanyId = channels[0].companies[0].id;
+        }
+        // Call the table's dedicated render function with all current states
+        card._advRebuildTable(currentCompanyId, dateIndexes, selectedChannels);
     }
+    // *** END MODIFICATION ***
   }
 }
 
@@ -1148,8 +1073,10 @@ window.advInitChart = advInitChart;
 
           channels.forEach(function (channel, index) {
             var companies = channel.companies || [];
+            // *** SỬ DỤNG companyId ĐƯỢC TRUYỀN VÀO để lọc data ***
             var company =
               companies.find(function (c) { return c.id === companyId; }) ||
+              companies.find(function (c) { return c.id === "your-company"; }) ||
               companies[0];
 
             if (!company) return;
@@ -1188,15 +1115,14 @@ window.advInitChart = advInitChart;
             tbody.appendChild(tr);
           });
 
-          // If called from setCompany/setDateRange, ensure chart controller knows the channel selection
+          // Ensure chart controller knows the channel selection
           var ctrl = card._advController;
           if (ctrl && typeof ctrl.setChannels === "function" && defaultCheckedIds.length) {
-            // NOTE: setChannels will usually limit to the first ID (single-select chart logic)
             ctrl.setChannels(defaultCheckedIds);
           }
         }
 
-        // --- EDITED: Expose the Rebuild function ---
+        // Expose the Rebuild function
         card._advRebuildTable = buildRows;
 
         var selectedCompanyId = (function () {
