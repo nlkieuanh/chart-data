@@ -424,14 +424,18 @@ function advInitChart(wrapper, jsonUrl) {
       renderChartOnly();
     },
     setCompany: function (companyId) {
-      currentCompanyId = companyId;
-      if (!jsonData) return;
-      const allDates = jsonData.dates || [];
-      const dateIndexes = advFilterDateRange(allDates, startDate, endDate);
-      if (typeof card._advRebuildTable === "function") {
-        card._advRebuildTable(companyId, dateIndexes, selectedChannels);
-      }
-    },
+  currentCompanyId = companyId;
+
+  if (!jsonData) return;
+
+  const allDates = jsonData.dates || [];
+  const dateIndexes = advFilterDateRange(allDates, startDate, endDate);
+
+  // table only, no rerender chart
+  if (typeof card._advRebuildTable === "function") {
+    card._advRebuildTable(companyId, dateIndexes, selectedChannels);
+  }
+},
     setMetric: function (metricId) {
       metric = metricId;
       renderChartOnly();
