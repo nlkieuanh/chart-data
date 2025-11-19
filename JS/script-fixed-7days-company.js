@@ -513,13 +513,9 @@ function advApplyCompanySelection(item) {
   var target = wrapper.querySelector(".company-dd-selected");
   if (target) target.textContent = selectedText;
 
-  var tab = document.querySelector('[data-w-tab="' + value + '"]');
-  if (tab) tab.click();
-
   var card = wrapper.closest(".card-block-wrap");
   var ctrl = card && card._advController;
-  // removed setChannels auto-call
-          }
+  }
         }
 
         // --- EDITED: Expose the Rebuild function ---
