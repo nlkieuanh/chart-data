@@ -2,7 +2,13 @@
   "meta": {
     "source": "webflow-project",
     "version": "1.0",
-    "currency": "EUR"
+    "currency": "EUR",
+    "metricLabels": {
+      "adsLaunched": "Ads Launched",
+      "spend": "Total Spend",
+      "revenue": "Total Revenue",
+      "revenuePerAd": "Revenue per Ad",
+      "roas": "Return on Ad Spend (ROAS)"
   },
   "dates": [
     "2025-01-01",
