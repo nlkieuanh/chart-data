@@ -653,22 +653,19 @@ function advInitChart(wrapper, jsonUrl) {
         }
       }
 
-      var metricList = [];
-      if (Array.isArray(jsonData.baseMetrics) && jsonData.baseMetrics.length) {
+        var metricList = [];
+        if (Array.isArray(jsonData.baseMetrics) && jsonData.baseMetrics.length) {
         metricList = jsonData.baseMetrics.slice();
-      } else if (firstChannel && firstChannel.companies && firstChannel.companies[0]) {
+        } else if (firstChannel && firstChannel.companies && firstChannel.companies[0]) {
         metricList = Object.keys(firstChannel.companies[0]).filter(function (key) {
-          return Array.isArray(firstChannel.companies[0][key]);
+        return Array.isArray(firstChannel.companies[0][key]);
         });
       }
 
-      var metricLabels = {
-        netRevenue: "Net Revenue",
-        spend: "Spend",
-        orders: "Orders",
-        newCustomers: "New Customers",
-        sessions: "Sessions"
-      };
+        var metricLabels =
+        (jsonData.meta && jsonData.meta.metricLabels)
+        ? jsonData.meta.metricLabels
+        : {};
 
       if (metricList.length) {
         advInitMetricDropdown(card, metricList, metricLabels);
