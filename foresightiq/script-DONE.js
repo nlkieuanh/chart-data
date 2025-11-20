@@ -1075,9 +1075,10 @@ window.advInitChart = advInitChart;
         var thEmpty = document.createElement("th");
         headRow.appendChild(thEmpty);
 
-        var dimensionLabel = (jsonData.meta && jsonData.meta.dimensionLabel)
-         ? jsonData.meta.dimensionLabel
-         : "Category"; // fallback default
+        var dimensionLabel =
+          json.meta && json.meta.dimensionLabel
+            ? json.meta.dimensionLabel
+            : "Category"; // fallback
 
         var thName = document.createElement("th");
         thName.textContent = dimensionLabel;
