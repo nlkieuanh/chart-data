@@ -1004,114 +1004,158 @@ document.addEventListener("click", function (event) {
   window.advInitTable = advInitTable;
 
 })();
-/***********************************************************
- * =========================================================
- *  ADV PLATFORM FILTER + AUTO INIT PER CARD-BLOCK-WRAP
- * =========================================================
- ***********************************************************/
+/* ============================================================
+   5. Platform → Apply to each card-block-wrap
+   ============================================================ */
 
-/***********************************************************
- * APPLY PLATFORM TO A CARD BLOCK
- ***********************************************************/
+function advFindTabPane(card, tabName) {
+  // Always target real tab pane, not tab link
+  let pane = card.querySelector(`.w-tab-pane[data-w-tab="${tabName}"]`);
+  if (pane) return pane;
+
+  // Fallback: detect based on tab link order
+  const links = Array.from(card.querySelectorAll('.w-tab-link'));
+  const panes = Array.from(card.querySelectorAll('.w-tab-pane'));
+
+  const link = links.find(l => l.getAttribute('data-w-tab') === tabName);
+  if (!link) return null;
+
+  const index = links.indexOf(link);
+  return panes[index] || null;
+}
+
+function advGetChartWrappers(tabPane) {
+  if (!tabPane) return [];
+  return Array.from(
+    tabPane.querySelectorAll(
+      ".chart-canvas, .tab-content-flex .chart-canvas"
+    )
+  );
+}
+
+function advGetTableWrappers(tabPane) {
+  if (!tabPane) return [];
+  return Array.from(
+    tabPane.querySelectorAll(
+      ".table-render, .tab-content-flex .table-render"
+    )
+  );
+}
+
 async function advApplyPlatformToBlock(card, platform) {
-  if (!card || !card._advConfig) return;
-
-  const config = card._advConfig;
-  const pfCfg = config.platforms?.[platform];
-  if (!pfCfg) {
-    console.warn("[ADV] Missing platform config:", platform);
-    return;
-  }
-
-  const competitorsUrl = pfCfg.competitors;
-  const bicUrl = pfCfg.bic;
-
-  // Query tabs (competitors + bic)
-  const competitorsTab = card.querySelector('[data-w-tab="competitors"]') || card;
-  const bicTab = card.querySelector('[data-w-tab="best-in-class"]') || card;
-
-  /* ------------------ INIT CHARTS ------------------ */
-  competitorsTab.querySelectorAll(".chart-canvas").forEach(w => {
-    advInitChart(w, competitorsUrl);
-  });
-
-  bicTab.querySelectorAll(".chart-canvas").forEach(w => {
-    advInitChart(w, bicUrl);
-  });
-
-  /* ------------------ INIT TABLES ------------------ */
-  competitorsTab.querySelectorAll(".table-render").forEach(w => {
-    advInitTable(w, competitorsUrl);
-  });
-
-  bicTab.querySelectorAll(".table-render").forEach(w => {
-    advInitTable(w, bicUrl);
-  });
-}
-
-/***********************************************************
- * SETUP PLATFORM DROPDOWN INSIDE CARD
- ***********************************************************/
-function advSetupPlatformFilter(card) {
-  const items = card.querySelectorAll(".platform-dd-select [data-value]");
-  if (!items.length) return;
-
-  items.forEach(it => {
-    it.addEventListener("click", () => {
-      const p = it.getAttribute("data-value");
-      if (!p) return;
-
-      card._advCurrentPlatform = p;
-      advApplyPlatformToBlock(card, p);
-
-      // Update selected label
-      const selectedLabel = card.querySelector(".platform-dd-selected");
-      const txt = it.querySelector(".dropdown-item-text")?.textContent?.trim();
-      if (selectedLabel && txt) selectedLabel.textContent = txt;
-
-      // Close dropdown
-      const dd = it.closest(".dropdown, .w-dropdown");
-      if (dd && window.$) $(dd).triggerHandler("w-close.w-dropdown");
-    });
-  });
-}
-
-/***********************************************************
- * AUTO INIT CARD BLOCK
- ***********************************************************/
-function advInitCardBlock(card) {
   if (!card) return;
 
   const configEl = card.querySelector(".adv-config");
   if (!configEl) {
-    console.warn("[ADV] Missing .adv-config inside card-block-wrap");
+    console.warn("[ADV] No adv-config found in card-block-wrap.");
     return;
   }
 
-  /* ---- Parse config ---- */
-  let config = {};
+  let config = null;
   try {
     config = JSON.parse(configEl.textContent.trim());
-  } catch (e) {
-    console.error("[ADV] Invalid adv-config JSON:", e);
+  } catch (err) {
+    console.error("[ADV] Failed to parse adv-config JSON:", err);
     return;
   }
 
-  card._advConfig = config;
-  card._advCurrentPlatform = config.defaultPlatform || "facebook";
+  const platforms = config.platforms || {};
+  const pf = platforms[platform];
+  if (!pf) {
+    console.error("[ADV] Platform not found in config:", platform, config);
+    return;
+  }
 
-  /* ---- Setup platform dropdown ---- */
-  advSetupPlatformFilter(card);
+  const competitorsUrl = pf.competitors;
+  const bicUrl = pf.bic;
 
-  /* ---- Initial load ---- */
-  advApplyPlatformToBlock(card, card._advCurrentPlatform);
+  if (!competitorsUrl || !bicUrl) {
+    console.error("[ADV] Missing competitors/bic URLs for platform:", platform);
+    return;
+  }
+
+  /* ---------------------------
+     FIND CORRECT TAB PANES
+     (with Webflow compatibility)
+  ---------------------------- */
+
+  const competitorsTab = advFindTabPane(card, "competitors");
+  const bicTab = advFindTabPane(card, "best-in-class");
+
+  if (!competitorsTab) {
+    console.warn("[ADV] Competitors tab-pane not found");
+  }
+  if (!bicTab) {
+    console.warn("[ADV] Best-in-class tab-pane not found");
+  }
+
+  /* ---------------------------
+     INIT CHARTS
+  ---------------------------- */
+
+  const compCharts = advGetChartWrappers(competitorsTab);
+  const bicCharts = advGetChartWrappers(bicTab);
+
+  compCharts.forEach(w => advInitChart(w, competitorsUrl));
+  bicCharts.forEach(w => advInitChart(w, bicUrl));
+
+  /* ---------------------------
+     INIT TABLES
+  ---------------------------- */
+
+  const compTables = advGetTableWrappers(competitorsTab);
+  const bicTables = advGetTableWrappers(bicTab);
+
+  compTables.forEach(w => advInitTable(w, competitorsUrl));
+  bicTables.forEach(w => advInitTable(w, bicUrl));
 }
 
-/***********************************************************
- * AUTO INITIALIZE ALL CARDS ON DOM READY
- ***********************************************************/
+/* ============================================================
+   5B. Auto-init all card-block-wraps
+   ============================================================ */
+
 document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".card-block-wrap").forEach(card => {
-    advInitCardBlock(card);
+    const configEl = card.querySelector(".adv-config");
+    if (!configEl) return;
+
+    let config = null;
+    try {
+      config = JSON.parse(configEl.textContent.trim());
+    } catch (err) {
+      console.error("[ADV] Failed to parse adv-config:", err);
+      return;
+    }
+
+    const defaultPlatform = config.defaultPlatform || Object.keys(config.platforms || {})[0];
+    if (!defaultPlatform) {
+      console.error("[ADV] No defaultPlatform defined and platforms empty.", config);
+      return;
+    }
+
+    advApplyPlatformToBlock(card, defaultPlatform);
+
+    /* ---------------------------
+       Platform Dropdown Listener
+    ---------------------------- */
+    const platformDD = card.querySelector(".platform-dd-select");
+    if (!platformDD) return;
+
+    platformDD.addEventListener("click", function (ev) {
+      const item = ev.target.closest("[data-value]");
+      if (!item) return;
+
+      const value = item.getAttribute("data-value");
+      const label = item.querySelector(".dropdown-item-text")?.textContent.trim() || value;
+
+      const display = platformDD.querySelector(".platform-dd-selected");
+      if (display) display.textContent = label;
+
+      advApplyPlatformToBlock(card, value);
+
+      const dd = item.closest(".dropdown, .w-dropdown");
+      if (dd && window.$) $(dd).triggerHandler("w-close.w-dropdown");
+    });
   });
 });
+
