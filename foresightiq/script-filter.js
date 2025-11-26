@@ -406,6 +406,168 @@ document.addEventListener("click", ev => {
     if (dd && window.$) $(dd).triggerHandler("w-close.w-dropdown");
   }
 });
+/* ============================================================
+   11. DYNAMIC CHANNEL TABLE PER TAB — FULL V4
+   ============================================================ */
+(function () {
+
+  function advInitTable(wrapper, jsonUrl) {
+    if (!wrapper || !jsonUrl) return;
+
+    const card = wrapper.closest(".card-block-wrap") || document;
+
+    fetch(jsonUrl)
+      .then(res => res.json())
+      .then(json => {
+        const channels = json.channels || [];
+        if (!channels.length) {
+          console.warn("[ADV] No channels in JSON:", jsonUrl);
+          return;
+        }
+
+        const metricsConfig = advGetBaseMetricsConfig(json);
+        if (!metricsConfig.length) {
+          console.warn("[ADV] No base metrics in JSON:", jsonUrl);
+          return;
+        }
+
+        const tableWrapper =
+          wrapper.querySelector(".adv-channel-table-wrapper") ||
+          wrapper;
+
+        let table =
+          tableWrapper.querySelector(".adv-channel-table") ||
+          (function () {
+            const t = document.createElement("table");
+            t.className = "adv-channel-table";
+            tableWrapper.appendChild(t);
+            return t;
+          })();
+
+        table.innerHTML = "";
+
+        /* ----- Build header ----- */
+        const thead = document.createElement("thead");
+        const headRow = document.createElement("tr");
+
+        const thEmpty = document.createElement("th");
+        headRow.appendChild(thEmpty);
+
+        const dim = json.meta?.dimensionLabel || "Category";
+
+        const thName = document.createElement("th");
+        thName.textContent = dim;
+        headRow.appendChild(thName);
+
+        metricsConfig.forEach(conf => {
+          const th = document.createElement("th");
+          th.textContent = conf.label;
+          headRow.appendChild(th);
+        });
+
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+        table.appendChild(tbody);
+
+        /* ----- Default Date Range = last 7 days (ONLY FIRST INIT) ----- */
+        const dates = json.dates || [];
+        const end = new Date(dates[dates.length - 1]);
+        const start = new Date(end);
+        start.setDate(start.getDate() - 6);
+
+        const defaultIndexes = dates.reduce((acc, d, i) => {
+          const dd = new Date(d);
+          if (dd >= start && dd <= end) acc.push(i);
+          return acc;
+        }, []);
+
+        let currentSelectedChannels = [];
+
+        /* ============================================================
+           BUILD ROWS (used by chart controllers)
+        ============================================================ */
+        function buildRows(companyId, customIndexes, selectedChannels) {
+          const dateIndexes =
+            Array.isArray(customIndexes) && customIndexes.length
+              ? customIndexes
+              : defaultIndexes;
+
+          currentSelectedChannels = Array.isArray(selectedChannels)
+            ? selectedChannels.slice()
+            : [];
+
+          tbody.innerHTML = "";
+          const newlyCheckedIds = [];
+
+          channels.forEach((channel, index) => {
+            const companies = channel.companies || [];
+            const company =
+              companies.find(c => c.id === companyId) || companies[0];
+            if (!company) return;
+
+            const ctx = {};
+            metricsConfig.forEach(conf => {
+              const arr = company[conf.key];
+              ctx[conf.id] = advSumSubset(arr, dateIndexes);
+            });
+
+            let isChecked =
+              currentSelectedChannels.indexOf(channel.id) !== -1;
+
+            if (currentSelectedChannels.length === 0 && index === 0)
+              isChecked = true;
+
+            if (isChecked && !newlyCheckedIds.includes(channel.id))
+              newlyCheckedIds.push(channel.id);
+
+            const tr = document.createElement("tr");
+
+            let html =
+              `<td><input type="checkbox" class="adv-channel-checkbox" 
+                data-adv-channel="${channel.id}" ${isChecked ? "checked" : ""}></td>`;
+
+            html += `<td>${channel.label || channel.id}</td>`;
+
+            metricsConfig.forEach(conf => {
+              const val = ctx[conf.id] || 0;
+              html += `<td>${advFormatMetricValue(conf, val)}</td>`;
+            });
+
+            tr.innerHTML = html;
+            tbody.appendChild(tr);
+          });
+
+          /* Sync with chart */
+          const chartWrapper =
+            wrapper.closest(".tab-content-flex")
+              ? wrapper.closest(".tab-content-flex").querySelector(".chart-canvas")
+              : (wrapper.closest(".w-tab-pane") ||
+                  wrapper.closest(".card-block-wrap"))
+                .querySelector(".chart-canvas");
+
+          const ctrl = chartWrapper?._advController;
+          if (ctrl && newlyCheckedIds.length) ctrl.setChannels(newlyCheckedIds);
+        }
+
+        wrapper._advRebuildTable = buildRows;
+
+        /* ----- First time: build with default values ----- */
+        const selectedCompanyId =
+          channels[0].companies?.[0]?.id || "your-company";
+
+        const initialChannelId = channels[0] ? [channels[0].id] : [];
+
+        buildRows(selectedCompanyId, defaultIndexes, initialChannelId);
+      })
+      .catch(err => console.error("[ADV] Init table failed:", err));
+  }
+
+  window.advInitTable = advInitTable;
+})();
+
+
 /* 3============================================================
    10. DATE RANGE DROPDOWN (FLATPICKR) — FULL V4
    ============================================================ */
