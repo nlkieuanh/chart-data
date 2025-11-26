@@ -1005,20 +1005,19 @@ document.addEventListener("click", function (event) {
 
 })();
 /* ============================================================
-   5. PLATFORM FILTER (FINAL VERSION)
+   5. PLATFORM FILTER — FINAL V3 (WITH STATE RESTORE)
    ============================================================ */
 
-/* ---- Utility: Always find correct Webflow TAB PANE ---- */
+/* ---------- Utility: Find Correct Webflow Tab Pane --------- */
 function advFindTabPane(card, tabName) {
-  // Always target real tab pane, not tab link
   let pane = card.querySelector(`.w-tab-pane[data-w-tab="${tabName}"]`);
   if (pane) return pane;
 
-  // Fallback if Webflow changes structure:
-  const links = Array.from(card.querySelectorAll('.w-tab-link'));
-  const panes = Array.from(card.querySelectorAll('.w-tab-pane'));
-  const match = links.find(l => l.getAttribute('data-w-tab') === tabName);
+  // fallback for inconsistent Webflow structures
+  const links = Array.from(card.querySelectorAll(".w-tab-link"));
+  const panes = Array.from(card.querySelectorAll(".w-tab-pane"));
 
+  const match = links.find(l => l.getAttribute("data-w-tab") === tabName);
   if (match) {
     const index = links.indexOf(match);
     return panes[index] || null;
@@ -1026,7 +1025,7 @@ function advFindTabPane(card, tabName) {
   return null;
 }
 
-/* ---- Utility: Get chart/table wrappers inside tab pane ---- */
+/* ---------- Utility: Get chart/table wrappers in tab -------- */
 function advGetChartWrappers(tabPane) {
   if (!tabPane) return [];
   return Array.from(
@@ -1042,7 +1041,7 @@ function advGetTableWrappers(tabPane) {
 }
 
 /* ============================================================
-   Apply platform to one card-block-wrap
+   5A — APPLY PLATFORM TO A CARD
    ============================================================ */
 async function advApplyPlatformToBlock(card, platform) {
   if (!card) return;
@@ -1069,28 +1068,39 @@ async function advApplyPlatformToBlock(card, platform) {
   const bicUrl = pf.bic;
 
   if (!competitorsUrl || !bicUrl) {
-    console.error("[ADV] Missing JSON URLs for platform:", platform);
+    console.error("[ADV] Missing URLs for platform:", platform);
     return;
   }
 
-  /* ---- Find correct tab panes ---- */
+  /* ------------ Find corresponding tab panes ------------ */
   const competitorsTab = advFindTabPane(card, "competitors");
   const bicTab = advFindTabPane(card, "best-in-class");
 
-  /* ---- Init charts ---- */
+  /* ------------ Init charts in each tab ------------ */
   advGetChartWrappers(competitorsTab).forEach(w => advInitChart(w, competitorsUrl));
   advGetChartWrappers(bicTab).forEach(w => advInitChart(w, bicUrl));
 
-  /* ---- Init tables ---- */
+  /* ------------ Init tables ------------ */
   advGetTableWrappers(competitorsTab).forEach(w => advInitTable(w, competitorsUrl));
   advGetTableWrappers(bicTab).forEach(w => advInitTable(w, bicUrl));
 }
 
 /* ============================================================
-   5B. AUTO-INIT FOR ALL CARD-BLOCK-WRAP (FINAL)
+   5B — AUTO-INIT + STATE RESTORE
    ============================================================ */
 document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".card-block-wrap").forEach(card => {
+
+    /* ----------------- Init state storage ------------------ */
+    if (!card._advState) {
+      card._advState = {
+        startDate: null,
+        endDate: null,
+        metric: null,
+        company: null,
+        channels: null
+      };
+    }
 
     const configEl = card.querySelector(".adv-config");
     if (!configEl) return;
@@ -1099,67 +1109,110 @@ document.addEventListener("DOMContentLoaded", function () {
     try {
       config = JSON.parse(configEl.textContent.trim());
     } catch (err) {
-      console.error("[ADV] Bad adv-config:", err);
+      console.error("[ADV] adv-config parse error:", err);
       return;
     }
 
-    /* ----------------------------------------------------
-       Detect DEFAULT platform from data-dropdown="default"
-    ---------------------------------------------------- */
     const platformDD = card.querySelector(".platform-dd-select");
+
+    /* ----------------------------------------------------
+       Detect DEFAULT platform using data-dropdown="default"
+    ---------------------------------------------------- */
     let defaultPlatform = null;
 
-    const defaultItem = platformDD
-      ? platformDD.querySelector('[data-dropdown="default"]')
-      : null;
+    const defaultItem =
+      platformDD &&
+      platformDD.querySelector('[data-dropdown="default"]');
 
     if (defaultItem) {
-      // Use real platform name in JSON config
-      // "default" always maps to "facebook" unless customized
+      // "default" always maps to Facebook
       defaultPlatform = "facebook";
     } else {
-      // fallback: use first key from config.platforms
+      // fallback to first platform
       defaultPlatform = Object.keys(config.platforms || {})[0];
     }
 
     if (!defaultPlatform) {
-      console.error("[ADV] No platform found in config");
+      console.error("[ADV] No platform found in config.");
       return;
     }
 
-    /* ---- Load JSON for default platform ---- */
+    /* ========================== APPLY FIRST LOAD ========================== */
     advApplyPlatformToBlock(card, defaultPlatform);
 
-    /* ---- Update UI label ---- */
+    /* ---------- Update platform UI label after first load ---------- */
     if (platformDD && defaultItem) {
       const labelEl = platformDD.querySelector(".platform-dd-selected");
       const textEl = defaultItem.querySelector(".dropdown-item-text");
-
       if (labelEl && textEl) {
         labelEl.textContent = textEl.textContent.trim();
       }
     }
 
     /* ============================================================
-       Platform dropdown click handler (final)
+       PLATFORM CLICK HANDLER — WITH STATE CAPTURE + RESTORE
        ============================================================ */
     if (platformDD) {
       platformDD.addEventListener("click", function (ev) {
         const item = ev.target.closest("[data-dropdown]");
         if (!item) return;
 
-        let ddValue = item.getAttribute("data-dropdown");
-        let platformToLoad = ddValue === "default" ? "facebook" : ddValue;
+        let dropdownValue = item.getAttribute("data-dropdown");
+        let platformToLoad = dropdownValue === "default" ? "facebook" : dropdownValue;
 
-        /* Update UI label */
+        /* ----------------------------------------------------
+           1) CAPTURE CURRENT STATE BEFORE PLATFORM SWITCH
+        ---------------------------------------------------- */
+        const state = card._advState;
+        const controllers = (card._advTabControllers || [])
+          .map(w => w._advController)
+          .filter(Boolean);
+
+        if (controllers.length) {
+          const ctrl = controllers[0];
+
+          state.startDate = ctrl._advStartDate || null;
+          state.endDate = ctrl._advEndDate || null;
+          state.metric = ctrl._advMetric || null;
+          state.company = ctrl._advCompany || null;
+          state.channels = ctrl._advChannels || null;
+        }
+
+        /* ----------------------------------------------------
+           Update platform dropdown label
+        ---------------------------------------------------- */
         const labelEl = platformDD.querySelector(".platform-dd-selected");
         const textEl = item.querySelector(".dropdown-item-text");
         if (labelEl && textEl) {
           labelEl.textContent = textEl.textContent.trim();
         }
 
-        /* Load correct JSON */
+        /* ----------------------------------------------------
+           2) APPLY PLATFORM (LOAD NEW JSON)
+        ---------------------------------------------------- */
         advApplyPlatformToBlock(card, platformToLoad);
+
+        /* ----------------------------------------------------
+           3) RESTORE STATE AFTER PLATFORM SWITCH
+        ---------------------------------------------------- */
+        setTimeout(() => {
+          const state = card._advState;
+          const ctrls = (card._advTabControllers || [])
+            .map(w => w._advController)
+            .filter(Boolean);
+
+          ctrls.forEach(ctrl => {
+            if (!ctrl) return;
+
+            if (state.metric) ctrl.setMetric(state.metric);
+            if (state.company) ctrl.setCompany(state.company);
+            if (state.channels) ctrl.setChannels(state.channels);
+            if (state.startDate && state.endDate) {
+              ctrl.setDateRange(state.startDate, state.endDate);
+            }
+          });
+
+        }, 80);
 
         /* Close Webflow dropdown */
         const dd = item.closest(".dropdown, .w-dropdown");
