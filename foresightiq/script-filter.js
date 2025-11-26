@@ -1,12 +1,15 @@
 /***********************************************************
- * ADV DASHBOARD — FULL V4
- * - Stable state handling
- * - Platform switching without resetting filters
- * - Correct Webflow tab mapping
- * - Safe data resilience
+ * ADV DASHBOARD — FULL V5
+ * - Fix table render (advInitTable always defined before use)
+ * - Ensure .adv-channel-table-wrapper is used correctly
+ * - Keep all V4 stable features
  ***********************************************************/
 
-/* 1---------- Helpers ---------- */
+/***********************PART 1/5**************************/
+
+/* ---------------------------------------------------------
+   1. HELPERS
+--------------------------------------------------------- */
 
 function advToISODate(d) {
   if (!(d instanceof Date)) return "";
@@ -32,7 +35,10 @@ function advSumSubset(arr, indexes) {
   return indexes.reduce((acc, idx) => acc + (Number(arr[idx]) || 0), 0);
 }
 
-/* ---------- Base Metrics Extraction ---------- */
+/* ---------------------------------------------------------
+   2. BASE METRIC CONFIG
+--------------------------------------------------------- */
+
 function advGetBaseMetricsConfig(json) {
   if (!json || typeof json !== "object") return [];
 
@@ -89,14 +95,20 @@ function advFormatMetricValue(conf, value) {
   return v.toFixed(2);
 }
 
-/* ---------- JSON Loader ---------- */
+/* ---------------------------------------------------------
+   3. JSON LOADER
+--------------------------------------------------------- */
+
 async function advLoadNewJSON(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error("JSON fetch failed " + url);
   return await res.json();
 }
 
-/* ---------- Date Range Filter ---------- */
+/* ---------------------------------------------------------
+   4. DATE RANGE FILTER
+--------------------------------------------------------- */
+
 function advFilterDateRange(dates, start, end) {
   if (!Array.isArray(dates)) return [];
 
@@ -112,7 +124,10 @@ function advFilterDateRange(dates, start, end) {
   }, []);
 }
 
-/* ---------- Extract Metric Series ---------- */
+/* ---------------------------------------------------------
+   5. METRIC SERIES EXTRACTION
+--------------------------------------------------------- */
+
 function advGetMetricSeries(json, channelId, companyId, metric, idxs) {
   const ch = (json.channels || []).find(c => c.id === channelId);
   if (!ch) return [];
@@ -127,7 +142,10 @@ function advGetMetricSeries(json, channelId, companyId, metric, idxs) {
   return idxs.map(i => full[i]);
 }
 
-/* ---------- Consolidation ---------- */
+/* ---------------------------------------------------------
+   6. CONSOLIDATION UTILITIES
+--------------------------------------------------------- */
+
 function advConsolidateChannels(list) {
   if (!list.length) return [];
   const len = list[0].length;
@@ -142,9 +160,12 @@ function advToPercent(values, total) {
     return t === 0 ? 0 : (v / t) * 100;
   });
 }
-/* 2============================================================
-   BUILD CHART PAYLOAD
+
+/***********************PART 2/5**************************/
+/* ============================================================
+   7. BUILD CHART PAYLOAD — V5
 ============================================================ */
+
 function advBuildChartPayload(options) {
   const { json, channelIds, dateIndexes, metric, mode, valueType } = options;
 
@@ -153,6 +174,9 @@ function advBuildChartPayload(options) {
 
   const seriesMap = {};
 
+  /* ------------------------------------------------------------
+     MODE = DIRECT 
+  ------------------------------------------------------------ */
   if (mode === "direct") {
     const first = channelIds[0];
     const ch = (json.channels || []).find(c => c.id === first);
@@ -167,7 +191,11 @@ function advBuildChartPayload(options) {
         };
       });
     }
+
   } else {
+    /* ------------------------------------------------------------
+       MODE = CONSOLIDATE
+    ------------------------------------------------------------ */
     (json.channels || []).forEach(ch => {
       if (!channelIds.includes(ch.id)) return;
 
@@ -191,11 +219,16 @@ function advBuildChartPayload(options) {
 
   let seriesList = Object.values(seriesMap);
 
+  /* ------------------------------------------------------------
+     VALUE TYPE = PERCENT → convert sang %
+  ------------------------------------------------------------ */
   if (valueType === "percent" && seriesList.length) {
     const len = seriesList[0].values.length;
     const total = new Array(len).fill(0);
 
-    seriesList.forEach(s => s.values.forEach((v, i) => (total[i] += v || 0)));
+    seriesList.forEach(s =>
+      s.values.forEach((v, i) => (total[i] += v || 0))
+    );
 
     seriesList = seriesList.map(s => ({
       name: s.name,
@@ -220,8 +253,9 @@ function advBuildChartPayload(options) {
 }
 
 /* ============================================================
-   RENDER CHART
+   8. RENDER LINE CHART — V5
 ============================================================ */
+
 function advRenderLineChart(canvas, payload, valueType) {
   if (!window.Chart) return;
 
@@ -294,8 +328,9 @@ function advRenderLineChart(canvas, payload, valueType) {
 }
 
 /* ============================================================
-   COMPANY & METRIC DROPDOWN INIT
+   9. INIT DROPDOWNS (COMPANY + METRIC) — V5
 ============================================================ */
+
 function advInitCompanyDropdown(scopeEl, companies) {
   if (!Array.isArray(companies) || !companies.length) return;
 
@@ -330,8 +365,8 @@ function advApplyCompanySelection(item) {
   if (!wrapper) return;
 
   const company = item.dataset.dropdown;
-  const textEl = item.querySelector(".dropdown-item-text");
-  const name = textEl?.textContent.trim() || "";
+  const name =
+    item.querySelector(".dropdown-item-text")?.textContent.trim() || "";
 
   const label = wrapper.querySelector(".company-dd-selected");
   if (label) label.textContent = name;
@@ -377,7 +412,8 @@ function advApplyMetricSelection(item) {
   if (!wrapper) return;
 
   const mid = item.dataset.dropdown;
-  const name = item.querySelector(".dropdown-item-text")?.textContent.trim();
+  const name =
+    item.querySelector(".dropdown-item-text")?.textContent.trim();
 
   const label = wrapper.querySelector(".chart-metric-dd-selected");
   if (label) label.textContent = name;
@@ -389,191 +425,29 @@ function advApplyMetricSelection(item) {
   if (ctrl) ctrl.setMetric(mid);
 }
 
-/* CLICK HANDLERS for metric/company */
+/* CLICK HANDLERS (GLOBAL) */
 document.addEventListener("click", ev => {
   const compItem = ev.target.closest(".company-dd-link-select [data-dropdown]");
   if (compItem) {
     advApplyCompanySelection(compItem);
-    const dd = compItem.closest(".dropdown,.w-dropdown");
-    if (dd && window.$) $(dd).triggerHandler("w-close.w-dropdown");
+    if (window.$) $(compItem.closest(".dropdown,.w-dropdown")).triggerHandler("w-close.w-dropdown");
     return;
   }
 
   const metricItem = ev.target.closest(".chart-metric-dd-select [data-dropdown]");
   if (metricItem) {
     advApplyMetricSelection(metricItem);
-    const dd = metricItem.closest(".dropdown,.w-dropdown");
-    if (dd && window.$) $(dd).triggerHandler("w-close.w-dropdown");
+    if (window.$) $(metricItem.closest(".dropdown,.w-dropdown")).triggerHandler("w-close.w-dropdown");
   }
 });
+/***********************PART 3/5**************************/
 /* ============================================================
-   11. DYNAMIC CHANNEL TABLE PER TAB — FULL V4
-   ============================================================ */
-(function () {
-
-  function advInitTable(wrapper, jsonUrl) {
-    if (!wrapper || !jsonUrl) return;
-
-    const card = wrapper.closest(".card-block-wrap") || document;
-
-    fetch(jsonUrl)
-      .then(res => res.json())
-      .then(json => {
-        const channels = json.channels || [];
-        if (!channels.length) {
-          console.warn("[ADV] No channels in JSON:", jsonUrl);
-          return;
-        }
-
-        const metricsConfig = advGetBaseMetricsConfig(json);
-        if (!metricsConfig.length) {
-          console.warn("[ADV] No base metrics in JSON:", jsonUrl);
-          return;
-        }
-
-        const tableWrapper =
-          wrapper.querySelector(".adv-channel-table-wrapper") ||
-          wrapper;
-
-        let table =
-          tableWrapper.querySelector(".adv-channel-table") ||
-          (function () {
-            const t = document.createElement("table");
-            t.className = "adv-channel-table";
-            tableWrapper.appendChild(t);
-            return t;
-          })();
-
-        table.innerHTML = "";
-
-        /* ----- Build header ----- */
-        const thead = document.createElement("thead");
-        const headRow = document.createElement("tr");
-
-        const thEmpty = document.createElement("th");
-        headRow.appendChild(thEmpty);
-
-        const dim = json.meta?.dimensionLabel || "Category";
-
-        const thName = document.createElement("th");
-        thName.textContent = dim;
-        headRow.appendChild(thName);
-
-        metricsConfig.forEach(conf => {
-          const th = document.createElement("th");
-          th.textContent = conf.label;
-          headRow.appendChild(th);
-        });
-
-        thead.appendChild(headRow);
-        table.appendChild(thead);
-
-        const tbody = document.createElement("tbody");
-        table.appendChild(tbody);
-
-        /* ----- Default Date Range = last 7 days (ONLY FIRST INIT) ----- */
-        const dates = json.dates || [];
-        const end = new Date(dates[dates.length - 1]);
-        const start = new Date(end);
-        start.setDate(start.getDate() - 6);
-
-        const defaultIndexes = dates.reduce((acc, d, i) => {
-          const dd = new Date(d);
-          if (dd >= start && dd <= end) acc.push(i);
-          return acc;
-        }, []);
-
-        let currentSelectedChannels = [];
-
-        /* ============================================================
-           BUILD ROWS (used by chart controllers)
-        ============================================================ */
-        function buildRows(companyId, customIndexes, selectedChannels) {
-          const dateIndexes =
-            Array.isArray(customIndexes) && customIndexes.length
-              ? customIndexes
-              : defaultIndexes;
-
-          currentSelectedChannels = Array.isArray(selectedChannels)
-            ? selectedChannels.slice()
-            : [];
-
-          tbody.innerHTML = "";
-          const newlyCheckedIds = [];
-
-          channels.forEach((channel, index) => {
-            const companies = channel.companies || [];
-            const company =
-              companies.find(c => c.id === companyId) || companies[0];
-            if (!company) return;
-
-            const ctx = {};
-            metricsConfig.forEach(conf => {
-              const arr = company[conf.key];
-              ctx[conf.id] = advSumSubset(arr, dateIndexes);
-            });
-
-            let isChecked =
-              currentSelectedChannels.indexOf(channel.id) !== -1;
-
-            if (currentSelectedChannels.length === 0 && index === 0)
-              isChecked = true;
-
-            if (isChecked && !newlyCheckedIds.includes(channel.id))
-              newlyCheckedIds.push(channel.id);
-
-            const tr = document.createElement("tr");
-
-            let html =
-              `<td><input type="checkbox" class="adv-channel-checkbox" 
-                data-adv-channel="${channel.id}" ${isChecked ? "checked" : ""}></td>`;
-
-            html += `<td>${channel.label || channel.id}</td>`;
-
-            metricsConfig.forEach(conf => {
-              const val = ctx[conf.id] || 0;
-              html += `<td>${advFormatMetricValue(conf, val)}</td>`;
-            });
-
-            tr.innerHTML = html;
-            tbody.appendChild(tr);
-          });
-
-          /* Sync with chart */
-          const chartWrapper =
-            wrapper.closest(".tab-content-flex")
-              ? wrapper.closest(".tab-content-flex").querySelector(".chart-canvas")
-              : (wrapper.closest(".w-tab-pane") ||
-                  wrapper.closest(".card-block-wrap"))
-                .querySelector(".chart-canvas");
-
-          const ctrl = chartWrapper?._advController;
-          if (ctrl && newlyCheckedIds.length) ctrl.setChannels(newlyCheckedIds);
-        }
-
-        wrapper._advRebuildTable = buildRows;
-
-        /* ----- First time: build with default values ----- */
-        const selectedCompanyId =
-          channels[0].companies?.[0]?.id || "your-company";
-
-        const initialChannelId = channels[0] ? [channels[0].id] : [];
-
-        buildRows(selectedCompanyId, defaultIndexes, initialChannelId);
-      })
-      .catch(err => console.error("[ADV] Init table failed:", err));
-  }
-
-  window.advInitTable = advInitTable;
-})();
-
-
-/* 3============================================================
-   10. DATE RANGE DROPDOWN (FLATPICKR) — FULL V4
+   10. DATE RANGE DROPDOWN (FLATPICKR) — V5
    ============================================================ */
 
 (function () {
-  /* ---------- Get Date Bounds from Card State ---------- */
+
+  /* ---------- Utility: get bounds from card ---------- */
   function getBoundsOrFallback(wrapper) {
     const card = wrapper.closest(".card-block-wrap");
     const bounds = card && card._advDateBounds;
@@ -592,7 +466,7 @@ document.addEventListener("click", ev => {
     };
   }
 
-  /* ---------- Get All Chart Controllers of This Card ---------- */
+  /* ---------- Utility: get all controllers in this card ---------- */
   function getControllers(wrapper) {
     const card = wrapper.closest(".card-block-wrap");
     if (!card) return [];
@@ -601,7 +475,9 @@ document.addEventListener("click", ev => {
       .filter(Boolean);
   }
 
-  /* ---------- Apply Pre-defined Date Range Dropdown ---------- */
+  /* ============================================================
+     APPLY PRESET DATE RANGE (default / lastMonth)
+  ============================================================ */
   function applyDateRangeSelection(item) {
     if (!item) return;
 
@@ -609,9 +485,10 @@ document.addEventListener("click", ev => {
     if (!wrapper) return;
 
     const ddValue = item.dataset.dropdown;
-    const textEl = item.querySelector(".dropdown-item-text");
     const labelEl = wrapper.querySelector(".date-range-dd-selected");
+    const textEl = item.querySelector(".dropdown-item-text");
 
+    /* Update UI label */
     if (labelEl && textEl) {
       labelEl.textContent = textEl.textContent.trim();
     }
@@ -621,34 +498,37 @@ document.addEventListener("click", ev => {
 
     if (!ctrls.length) return;
 
+    /* PRESET: default → last 7 days */
     if (ddValue === "default") {
-      // default = last 7 days
       const end = new Date(bounds.max);
       const start = new Date(end);
       start.setDate(start.getDate() - 6);
 
-      const s = advToISODate(start);
-      const e = advToISODate(end);
+      const sISO = advToISODate(start);
+      const eISO = advToISODate(end);
 
-      ctrls.forEach(c => c.setDateRange(s, e));
+      ctrls.forEach(c => c.setDateRange(sISO, eISO));
       return;
     }
 
+    /* PRESET: lastMonth → 30 days */
     if (ddValue === "lastMonth") {
       const end = new Date(bounds.max);
       const start = new Date(end);
       start.setDate(start.getDate() - 29);
 
-      const s = advToISODate(start);
-      const e = advToISODate(end);
+      const sISO = advToISODate(start);
+      const eISO = advToISODate(end);
 
-      ctrls.forEach(c => c.setDateRange(s, e));
+      ctrls.forEach(c => c.setDateRange(sISO, eISO));
       return;
     }
   }
 
-  /* ---------- Handle Flatpickr Manual User Input ---------- */
-  function onFlatpickrChange(selected, dateStr, fp) {
+  /* ============================================================
+     HANDLE MANUAL FLATPICKR RANGE SELECTION
+  ============================================================ */
+  function onFlatpickrChange(selected, _, fp) {
     const input = fp.input;
     const wrapper = input.closest(".date-range-dd-select");
     if (!wrapper) return;
@@ -657,22 +537,23 @@ document.addEventListener("click", ev => {
     const ctrls = getControllers(wrapper);
     if (!labelEl || !ctrls.length) return;
 
-    if (!selected || selected.length === 0) return;
+    if (!selected || !selected.length) return;
 
     const fmt = { day: "2-digit", month: "short", year: "numeric" };
 
+    /* Single date selected (drag start) */
     if (selected.length === 1) {
       const t1 = selected[0].toLocaleDateString(undefined, fmt);
       labelEl.textContent = t1 + " …";
       return;
     }
 
+    /* Full range selected */
     const start = selected[0];
     const end = selected[1];
 
     const t1 = start.toLocaleDateString(undefined, fmt);
     const t2 = end.toLocaleDateString(undefined, fmt);
-
     labelEl.textContent = `${t1} – ${t2}`;
 
     const sISO = advToISODate(start);
@@ -681,20 +562,24 @@ document.addEventListener("click", ev => {
     ctrls.forEach(c => c.setDateRange(sISO, eISO));
   }
 
-  /* ---------- INIT UI ON PAGE LOAD ---------- */
+  /* ============================================================
+     INIT DATE-RANGE UI ON PAGE LOAD
+  ============================================================ */
   document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll(".date-range-dd-select").forEach(wrapper => {
+
+      /* Set default label from data-dropdown="default" */
       const defItem =
         wrapper.querySelector('[data-dropdown="default"]') ||
         wrapper.querySelector("[data-dropdown]");
 
       const labelEl = wrapper.querySelector(".date-range-dd-selected");
-
       if (defItem && labelEl) {
         const txt = defItem.querySelector(".dropdown-item-text");
         if (txt) labelEl.textContent = txt.textContent.trim();
       }
 
+      /* Init flatpickr on input */
       const input =
         wrapper.querySelector("#customRange") ||
         wrapper.querySelector(".date-range-input");
@@ -712,8 +597,10 @@ document.addEventListener("click", ev => {
     });
   });
 
-  /* ---------- CLICK HANDLER FOR PRESET ITEMS ---------- */
-  document.addEventListener("click", function (ev) {
+  /* ============================================================
+     GLOBAL CLICK HANDLER FOR PRESET RANGE OPTIONS
+  ============================================================ */
+  document.addEventListener("click", ev => {
     const item = ev.target.closest(".date-range-dd-select [data-dropdown]");
     if (!item) return;
 
@@ -724,9 +611,11 @@ document.addEventListener("click", ev => {
     const dd = item.closest(".dropdown,.w-dropdown");
     if (dd && window.$) $(dd).triggerHandler("w-close.w-dropdown");
   });
+
 })();
-/* 4 ============================================================
-   9. INIT CHART (PER TAB WRAPPER) — FULL V4 WITH STATE
+/***********************PART 4/5**************************/
+/* ============================================================
+   9. INIT CHART (PER TAB WRAPPER) — FULL V5
    ============================================================ */
 
 function advInitChart(wrapper, jsonUrl) {
@@ -738,45 +627,52 @@ function advInitChart(wrapper, jsonUrl) {
 
   const card = wrapper.closest(".card-block-wrap") || document;
 
-  // Register this wrapper as one chart-controller source
+  /* --------------------------------------------------------
+     1) REGISTER THIS CHART WRAPPER TO CARD
+  -------------------------------------------------------- */
   if (!card._advTabControllers) card._advTabControllers = [];
   if (!card._advTabControllers.includes(wrapper)) {
     card._advTabControllers.push(wrapper);
   }
 
-  // Find table wrapper belonging to the same tab
-  const tableRender =
-    wrapper.closest(".tab-content-flex")
-      ? wrapper.closest(".tab-content-flex").querySelector(".table-render")
-      : (wrapper.closest(".w-tab-pane") ||
-          wrapper.closest(".card-block-wrap")
-        ).querySelector(".table-render");
+  /* --------------------------------------------------------
+     2) FIND TABLE RENDER BELONGING TO SAME TAB
+  -------------------------------------------------------- */
+  let tableRender = null;
+
+  const tabFlex = wrapper.closest(".tab-content-flex");
+  if (tabFlex) {
+    tableRender = tabFlex.querySelector(".table-render");
+  } else {
+    tableRender =
+      (wrapper.closest(".w-tab-pane") || wrapper.closest(".card-block-wrap"))
+        .querySelector(".table-render");
+  }
 
   let jsonData = null;
 
-  // Dynamic states inside chart instance
+  /* Local chart states */
   let selectedChannels = [];
   let metric = "netRevenue";
   let valueType = "absolute";
   let mode = "direct";
   let currentCompanyId = null;
 
-  // Global state (first load only)
+  /* Shared card date range */
   let startDate = null;
   let endDate = null;
 
-  /* ----- Date Range Default Calculation ----- */
+  /* Utility: default last 7 days */
   function getDefaultDateRange(dates) {
     const endObj = new Date(dates[dates.length - 1]);
     const startObj = new Date(endObj);
-    startObj.setDate(startObj.getDate() - 6); // last 7 days
-    return {
-      start: advToISODate(startObj),
-      end: advToISODate(endObj)
-    };
+    startObj.setDate(startObj.getDate() - 6);
+    return { start: advToISODate(startObj), end: advToISODate(endObj) };
   }
 
-  /* ---------- JSON LOAD ---------- */
+  /* --------------------------------------------------------
+     3) LOAD JSON FOR THIS CHART INSTANCE
+  -------------------------------------------------------- */
   advLoadNewJSON(jsonUrl)
     .then(json => {
       jsonData = json;
@@ -785,18 +681,14 @@ function advInitChart(wrapper, jsonUrl) {
       const channels = jsonData.channels || [];
 
       if (!allDates.length || !channels.length) {
-        console.error("[ADV] Missing dates or channels");
+        console.error("[ADV] Missing dates or channels:", jsonUrl);
         return;
       }
 
-      /* ============================================================
-         LOAD DATE RANGE FROM STATE IF AVAILABLE
-         OTHERWISE FIRST-LOAD → DEFAULT LAST 7 DAYS
-         ============================================================ */
-      if (
-        card._advState?.startDate &&
-        card._advState?.endDate
-      ) {
+      /* --------------------------------------------------------
+         RESTORE OR INITIALIZE DATE RANGE
+      -------------------------------------------------------- */
+      if (card._advState?.startDate && card._advState?.endDate) {
         startDate = card._advState.startDate;
         endDate = card._advState.endDate;
       } else {
@@ -805,13 +697,15 @@ function advInitChart(wrapper, jsonUrl) {
         endDate = def.end;
       }
 
-      /* Save min/max bounds so date-range dropdown knows range */
+      /* Save date bounds for date-range dropdown UI */
       card._advDateBounds = {
         min: allDates[0],
         max: allDates[allDates.length - 1]
       };
 
-      /* ---------- Company dropdown init ---------- */
+      /* --------------------------------------------------------
+         INIT COMPANY DROPDOWN
+      -------------------------------------------------------- */
       const firstChannel = channels[0];
       if (firstChannel?.companies?.length) {
         const companies = firstChannel.companies.map(c => ({
@@ -826,7 +720,7 @@ function advInitChart(wrapper, jsonUrl) {
           companies
         );
 
-        // Restore company from state if available
+        /* Restore company */
         if (card._advState?.company) {
           currentCompanyId = card._advState.company;
         } else {
@@ -834,7 +728,9 @@ function advInitChart(wrapper, jsonUrl) {
         }
       }
 
-      /* ---------- Metric dropdown init ---------- */
+      /* --------------------------------------------------------
+         INIT METRIC DROPDOWN
+      -------------------------------------------------------- */
       let metricList = [];
       if (jsonData.baseMetrics?.length) {
         metricList = jsonData.baseMetrics.slice();
@@ -853,40 +749,47 @@ function advInitChart(wrapper, jsonUrl) {
         metricLabels
       );
 
-      // Restore metric if state exists
+      /* Restore metric */
       if (card._advState?.metric && metricList.includes(card._advState.metric)) {
         metric = card._advState.metric;
       } else {
         metric = metricList[0] || "netRevenue";
       }
 
-      /* ---------- Restore channels if saved ---------- */
+      /* --------------------------------------------------------
+         RESTORE SELECTED CHANNELS
+      -------------------------------------------------------- */
       if (card._advState?.channels?.length) {
         selectedChannels = card._advState.channels.slice();
       } else {
         selectedChannels = [channels[0].id];
       }
 
-      /* ---------- Render everything with restored state ---------- */
+      /* --------------------------------------------------------
+         FIRST RENDER
+      -------------------------------------------------------- */
       renderChartAndTable(true);
 
-      /* ---------- Table Checkboxes ---------- */
+      /* --------------------------------------------------------
+         CONNECT TABLE CHECKBOX LISTENER
+      -------------------------------------------------------- */
       connectTableCheckbox();
 
-      /* ---------- Switches (mode/valueType) ---------- */
+      /* --------------------------------------------------------
+         CONNECT CHART MODE SWITCHES
+      -------------------------------------------------------- */
       connectModeSwitch();
     })
     .catch(err => console.error("[ADV] JSON load error", err));
 
   /* ============================================================
-       CONTROLLER EXPOSED TO OUTSIDE
-   ============================================================ */
+     EXPOSED CONTROLLER
+  ============================================================ */
   const controller = {
     setDateRange(start, end) {
       startDate = start;
       endDate = end;
 
-      // Save to global state
       if (card._advState) {
         card._advState.startDate = start;
         card._advState.endDate = end;
@@ -919,9 +822,7 @@ function advInitChart(wrapper, jsonUrl) {
     setCompany(cid) {
       currentCompanyId = cid;
 
-      if (card._advState) {
-        card._advState.company = cid;
-      }
+      if (card._advState) card._advState.company = cid;
 
       if (!jsonData) return;
 
@@ -935,44 +836,29 @@ function advInitChart(wrapper, jsonUrl) {
 
     setMetric(mid) {
       metric = mid;
-
-      if (card._advState) {
-        card._advState.metric = mid;
-      }
-
+      if (card._advState) card._advState.metric = mid;
       renderChartAndTable();
     },
 
-    // State reflection (used by platform restore)
-    get _advStartDate() {
-      return startDate;
-    },
-    get _advEndDate() {
-      return endDate;
-    },
-    get _advMetric() {
-      return metric;
-    },
-    get _advCompany() {
-      return currentCompanyId;
-    },
-    get _advChannels() {
-      return selectedChannels;
-    }
+    /* For platform restore */
+    get _advStartDate() { return startDate; },
+    get _advEndDate() { return endDate; },
+    get _advMetric() { return metric; },
+    get _advCompany() { return currentCompanyId; },
+    get _advChannels() { return selectedChannels; }
   };
 
   wrapper._advController = controller;
 
   /* ============================================================
-       INTERNAL RENDER FUNCTIONS
-   ============================================================ */
+     INTERNAL RENDER ENGINE
+  ============================================================ */
 
   function renderChart(dateIndexes) {
     if (!jsonData) return;
 
-    if (!dateIndexes?.length) {
-      const all = jsonData.dates || [];
-      dateIndexes = all.map((_, i) => i);
+    if (!Array.isArray(dateIndexes) || !dateIndexes.length) {
+      dateIndexes = (jsonData.dates || []).map((_, i) => i);
     }
 
     const payload = advBuildChartPayload({
@@ -990,8 +876,8 @@ function advInitChart(wrapper, jsonUrl) {
   function renderChartAndTable(rebuildTable) {
     if (!jsonData) return;
 
-    const allDates = jsonData.dates || [];
-    const idxs = advFilterDateRange(allDates, startDate, endDate);
+    const all = jsonData.dates || [];
+    const idxs = advFilterDateRange(all, startDate, endDate);
 
     renderChart(idxs);
 
@@ -1001,8 +887,8 @@ function advInitChart(wrapper, jsonUrl) {
   }
 
   /* ============================================================
-       TABLE CHECKBOX (SELECT CHANNEL)
-   ============================================================ */
+     TABLE CHECKBOX LOGIC
+  ============================================================ */
   function connectTableCheckbox() {
     if (!tableRender || tableRender._advCheckboxBound) return;
 
@@ -1010,7 +896,7 @@ function advInitChart(wrapper, jsonUrl) {
 
     tableRender.addEventListener("change", ev => {
       const cb = ev.target.closest(".adv-channel-checkbox");
-      if (!cb || !tableRender.contains(cb)) return;
+      if (!cb) return;
 
       const tbody = cb.closest("tbody");
       if (!tbody) return;
@@ -1024,10 +910,10 @@ function advInitChart(wrapper, jsonUrl) {
         boxes.forEach(b => (b.checked = b === cb));
         selectedChannels = [channelId];
       } else {
-        const checked = boxes.filter(b => b.checked);
-        if (checked.length) {
-          selectedChannels = [checked[0].dataset.advChannel];
-        } else if (boxes[0]) {
+        const active = boxes.filter(b => b.checked);
+        if (active.length) {
+          selectedChannels = [active[0].dataset.advChannel];
+        } else {
           boxes[0].checked = true;
           selectedChannels = [boxes[0].dataset.advChannel];
         }
@@ -1042,9 +928,8 @@ function advInitChart(wrapper, jsonUrl) {
   }
 
   /* ============================================================
-       MODE SWITCH (DIRECT / CONSOLIDATE)
-       VALUE TYPE (ABSOLUTE / %)
-   ============================================================ */
+     MODE SWITCHES
+  ============================================================ */
   function connectModeSwitch() {
     const modeWrap = wrapper.querySelector(".chart-switch-mode-btn");
     const valueWrap = wrapper.querySelector(".chart-switch-value-btn");
@@ -1092,40 +977,54 @@ function advInitChart(wrapper, jsonUrl) {
     }
   }
 }
-/* 5============================================================
-   5. PLATFORM FILTER — FULL V4 (STATE-PRESERVED)
-   ============================================================ */
+/***********************PART 5/5**************************/
+/***********************************************************
+ * 5. PLATFORM FILTER — FULL V5 (STATE-PRESERVED)
+ ***********************************************************/
 
-/* ---------- Find Correct Tab Pane ---------- */
+/* ---------------------------------------------------------
+   FIND CORRECT TAB PANE BY NAME
+--------------------------------------------------------- */
 function advFindTabPane(card, tabName) {
   let pane = card.querySelector(`.w-tab-pane[data-w-tab="${tabName}"]`);
   if (pane) return pane;
 
-  const links = [...card.querySelectorAll('.w-tab-link')];
-  const panes = [...card.querySelectorAll('.w-tab-pane')];
+  const links = [...card.querySelectorAll(".w-tab-link")];
+  const panes = [...card.querySelectorAll(".w-tab-pane")];
 
-  const match = links.find(l => l.getAttribute('data-w-tab') === tabName);
+  const match = links.find(l => l.getAttribute("data-w-tab") === tabName);
   if (match) {
-    const index = links.indexOf(match);
-    return panes[index] || null;
+    const idx = links.indexOf(match);
+    return panes[idx] || null;
   }
+
   return null;
 }
 
-/* ---------- Get wrappers inside tab ---------- */
+/* ---------------------------------------------------------
+   GET CHART + TABLE WRAPPERS
+--------------------------------------------------------- */
 function advGetChartWrappers(tabPane) {
   if (!tabPane) return [];
-  return [...tabPane.querySelectorAll(".chart-canvas, .tab-content-flex .chart-canvas")];
+  return [
+    ...tabPane.querySelectorAll(
+      ".chart-canvas, .tab-content-flex .chart-canvas"
+    )
+  ];
 }
 
 function advGetTableWrappers(tabPane) {
   if (!tabPane) return [];
-  return [...tabPane.querySelectorAll(".table-render, .tab-content-flex .table-render")];
+  return [
+    ...tabPane.querySelectorAll(
+      ".table-render, .tab-content-flex .table-render"
+    )
+  ];
 }
 
-/* ============================================================
-   APPLY PLATFORM TO CARD (LOAD NEW JSON)
-   ============================================================ */
+/* ---------------------------------------------------------
+   APPLY PLATFORM TO ONE CARD (LOAD NEW JSON)
+--------------------------------------------------------- */
 async function advApplyPlatformToBlock(card, platform) {
   if (!card) return;
 
@@ -1136,7 +1035,7 @@ async function advApplyPlatformToBlock(card, platform) {
   try {
     config = JSON.parse(configEl.textContent.trim());
   } catch (err) {
-    console.error("[ADV] Cannot parse adv-config:", err);
+    console.error("[ADV] Invalid adv-config JSON:", err);
     return;
   }
 
@@ -1150,30 +1049,39 @@ async function advApplyPlatformToBlock(card, platform) {
   const bicUrl = pf.bic;
 
   if (!competitorsUrl || !bicUrl) {
-    console.error("[ADV] Missing competitors/bic JSON for platform:", platform);
+    console.error("[ADV] Missing JSON URLs for platform:", platform);
     return;
   }
 
-  /* --- Find correct tab panes --- */
   const competitorsTab = advFindTabPane(card, "competitors");
   const bicTab = advFindTabPane(card, "best-in-class");
 
-  /* --- Init charts --- */
-  advGetChartWrappers(competitorsTab).forEach(w => advInitChart(w, competitorsUrl));
-  advGetChartWrappers(bicTab).forEach(w => advInitChart(w, bicUrl));
+  /* Reset tab controllers so chart can re-init clean */
+  card._advTabControllers = [];
 
-  /* --- Init tables --- */
-  advGetTableWrappers(competitorsTab).forEach(w => advInitTable(w, competitorsUrl));
-  advGetTableWrappers(bicTab).forEach(w => advInitTable(w, bicUrl));
+  /* COMPETITORS */
+  advGetChartWrappers(competitorsTab).forEach(w =>
+    advInitChart(w, competitorsUrl)
+  );
+  advGetTableWrappers(competitorsTab).forEach(w =>
+    advInitTable(w, competitorsUrl)
+  );
+
+  /* BEST-IN-CLASS */
+  advGetChartWrappers(bicTab).forEach(w =>
+    advInitChart(w, bicUrl)
+  );
+  advGetTableWrappers(bicTab).forEach(w =>
+    advInitTable(w, bicUrl)
+  );
 }
 
-/* ============================================================
+/* ---------------------------------------------------------
    AUTO-INIT PLATFORM FOR ALL CARDS
-   ============================================================ */
+--------------------------------------------------------- */
 document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".card-block-wrap").forEach(card => {
-
-    /* ---- Create state store if not exist ---- */
+    /* Shared state store */
     if (!card._advState) {
       card._advState = {
         startDate: null,
@@ -1196,102 +1104,84 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     const platformDD = card.querySelector(".platform-dd-select");
+    if (!platformDD) return;
 
-    /* ============================================================
+    /* -----------------------------------------------------
        DETECT DEFAULT PLATFORM FROM data-dropdown="default"
-    ============================================================ */
-    let defaultPlatform = null;
-    const defaultItem =
-      platformDD?.querySelector('[data-dropdown="default"]') || null;
-
-    if (defaultItem) {
-      defaultPlatform = "facebook"; // Your desired default
-    } else {
-      defaultPlatform = Object.keys(config.platforms || {})[0];
-    }
+    ----------------------------------------------------- */
+    const itemDefault = platformDD.querySelector('[data-dropdown="default"]');
+    let defaultPlatform =
+      itemDefault ? "facebook" : Object.keys(config.platforms || {})[0];
 
     if (!defaultPlatform) {
-      console.error("[ADV] No platform found in config");
+      console.error("[ADV] No platform in config");
       return;
     }
 
-    /* ============================================================
-       1) FIRST LOAD — APPLY PLATFORM ONCE
-    ============================================================ */
+    /* FIRST LOAD */
     advApplyPlatformToBlock(card, defaultPlatform);
 
-    /* Set UI label */
-    if (platformDD && defaultItem) {
+    if (itemDefault) {
       const label = platformDD.querySelector(".platform-dd-selected");
-      const txt = defaultItem.querySelector(".dropdown-item-text");
+      const txt = itemDefault.querySelector(".dropdown-item-text");
       if (label && txt) label.textContent = txt.textContent.trim();
     }
 
-    /* ============================================================
-       PLATFORM CLICK HANDLER — WITH FULL STATE CAPTURE/RESTORE
-    ============================================================ */
-    if (platformDD) {
-      platformDD.addEventListener("click", function (ev) {
-        const item = ev.target.closest("[data-dropdown]");
-        if (!item) return;
+    /* -----------------------------------------------------
+       CLICK HANDLER (STATE PRESERVED)
+    ----------------------------------------------------- */
+    platformDD.addEventListener("click", function (ev) {
+      const item = ev.target.closest("[data-dropdown]");
+      if (!item) return;
 
-        let ddValue = item.getAttribute("data-dropdown");
-        let platformToLoad = ddValue === "default" ? "facebook" : ddValue;
+      let value = item.getAttribute("data-dropdown");
+      let platformToLoad = value === "default" ? "facebook" : value;
 
-        /* --------------------------------------------------------
-           1) CAPTURE CURRENT STATE BEFORE PLATFORM SWITCH
-        -------------------------------------------------------- */
-        const state = card._advState;
-        const ctrls = (card._advTabControllers || [])
+      /* CAPTURE CURRENT STATE */
+      const ctrls = (card._advTabControllers || [])
+        .map(w => w._advController)
+        .filter(Boolean);
+
+      if (ctrls.length) {
+        const c = ctrls[0];
+        card._advState.startDate = c._advStartDate || null;
+        card._advState.endDate = c._advEndDate || null;
+        card._advState.metric = c._advMetric || null;
+        card._advState.company = c._advCompany || null;
+        card._advState.channels = c._advChannels || null;
+      }
+
+      /* Update dropdown UI */
+      const label = platformDD.querySelector(".platform-dd-selected");
+      const txt = item.querySelector(".dropdown-item-text");
+      if (label && txt) label.textContent = txt.textContent.trim();
+
+      /* LOAD NEW JSON */
+      advApplyPlatformToBlock(card, platformToLoad);
+
+      /* RESTORE STATE AFTER JSON LOADED */
+      setTimeout(() => {
+        const st = card._advState;
+
+        const newCtrls = (card._advTabControllers || [])
           .map(w => w._advController)
           .filter(Boolean);
 
-        if (ctrls.length) {
-          const c = ctrls[0];
-          state.startDate = c._advStartDate || null;
-          state.endDate = c._advEndDate || null;
-          state.metric = c._advMetric || null;
-          state.company = c._advCompany || null;
-          state.channels = c._advChannels || null;
-        }
+        newCtrls.forEach(ctrl => {
+          if (!ctrl) return;
 
-        /* --------------------------------------------------------
-           Update UI label
-        -------------------------------------------------------- */
-        const label = platformDD.querySelector(".platform-dd-selected");
-        const txt = item.querySelector(".dropdown-item-text");
-        if (label && txt) label.textContent = txt.textContent.trim();
+          if (st.metric) ctrl.setMetric(st.metric);
+          if (st.company) ctrl.setCompany(st.company);
+          if (st.channels?.length) ctrl.setChannels(st.channels);
+          if (st.startDate && st.endDate)
+            ctrl.setDateRange(st.startDate, st.endDate);
+        });
+      }, 80);
 
-        /* --------------------------------------------------------
-           2) APPLY PLATFORM (LOAD NEW JSON)
-        -------------------------------------------------------- */
-        advApplyPlatformToBlock(card, platformToLoad);
-
-        /* --------------------------------------------------------
-           3) RESTORE STATE AFTER PLATFORM SWITCH
-        -------------------------------------------------------- */
-        setTimeout(() => {
-          const st = card._advState;
-
-          const controllers = (card._advTabControllers || [])
-            .map(w => w._advController)
-            .filter(Boolean);
-
-          controllers.forEach(ctrl => {
-            if (!ctrl) return;
-
-            if (st.metric) ctrl.setMetric(st.metric);
-            if (st.company) ctrl.setCompany(st.company);
-            if (st.channels?.length) ctrl.setChannels(st.channels);
-            if (st.startDate && st.endDate)
-              ctrl.setDateRange(st.startDate, st.endDate);
-          });
-        }, 80);
-
-        /* Close WF dropdown */
-        const dd = item.closest(".dropdown,.w-dropdown");
-        if (dd && window.$) $(dd).triggerHandler("w-close.w-dropdown");
-      });
-    }
+      /* Close WF dropdown */
+      const dd = item.closest(".dropdown,.w-dropdown");
+      if (dd && window.$) $(dd).triggerHandler("w-close.w-dropdown");
+    });
   });
 });
+
