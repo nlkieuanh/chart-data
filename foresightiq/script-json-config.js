@@ -1005,64 +1005,63 @@ document.addEventListener("click", function (event) {
 
 })();
 /* ============================================================
-   5. Platform → Apply to each card-block-wrap
+   5. PLATFORM FILTER (FINAL VERSION)
    ============================================================ */
 
+/* ---- Utility: Always find correct Webflow TAB PANE ---- */
 function advFindTabPane(card, tabName) {
   // Always target real tab pane, not tab link
   let pane = card.querySelector(`.w-tab-pane[data-w-tab="${tabName}"]`);
   if (pane) return pane;
 
-  // Fallback: detect based on tab link order
+  // Fallback if Webflow changes structure:
   const links = Array.from(card.querySelectorAll('.w-tab-link'));
   const panes = Array.from(card.querySelectorAll('.w-tab-pane'));
+  const match = links.find(l => l.getAttribute('data-w-tab') === tabName);
 
-  const link = links.find(l => l.getAttribute('data-w-tab') === tabName);
-  if (!link) return null;
-
-  const index = links.indexOf(link);
-  return panes[index] || null;
+  if (match) {
+    const index = links.indexOf(match);
+    return panes[index] || null;
+  }
+  return null;
 }
 
+/* ---- Utility: Get chart/table wrappers inside tab pane ---- */
 function advGetChartWrappers(tabPane) {
   if (!tabPane) return [];
   return Array.from(
-    tabPane.querySelectorAll(
-      ".chart-canvas, .tab-content-flex .chart-canvas"
-    )
+    tabPane.querySelectorAll(".chart-canvas, .tab-content-flex .chart-canvas")
   );
 }
 
 function advGetTableWrappers(tabPane) {
   if (!tabPane) return [];
   return Array.from(
-    tabPane.querySelectorAll(
-      ".table-render, .tab-content-flex .table-render"
-    )
+    tabPane.querySelectorAll(".table-render, .tab-content-flex .table-render")
   );
 }
 
+/* ============================================================
+   Apply platform to one card-block-wrap
+   ============================================================ */
 async function advApplyPlatformToBlock(card, platform) {
   if (!card) return;
 
   const configEl = card.querySelector(".adv-config");
-  if (!configEl) {
-    console.warn("[ADV] No adv-config found in card-block-wrap.");
-    return;
-  }
+  if (!configEl) return;
 
-  let config = null;
+  let config = {};
   try {
     config = JSON.parse(configEl.textContent.trim());
   } catch (err) {
-    console.error("[ADV] Failed to parse adv-config JSON:", err);
+    console.error("[ADV] Cannot parse adv-config:", err);
     return;
   }
 
   const platforms = config.platforms || {};
   const pf = platforms[platform];
   if (!pf) {
-    console.error("[ADV] Platform not found in config:", platform, config);
+    console.error("[ADV] Platform not found:", platform);
     return;
   }
 
@@ -1070,92 +1069,102 @@ async function advApplyPlatformToBlock(card, platform) {
   const bicUrl = pf.bic;
 
   if (!competitorsUrl || !bicUrl) {
-    console.error("[ADV] Missing competitors/bic URLs for platform:", platform);
+    console.error("[ADV] Missing JSON URLs for platform:", platform);
     return;
   }
 
-  /* ---------------------------
-     FIND CORRECT TAB PANES
-     (with Webflow compatibility)
-  ---------------------------- */
-
+  /* ---- Find correct tab panes ---- */
   const competitorsTab = advFindTabPane(card, "competitors");
   const bicTab = advFindTabPane(card, "best-in-class");
 
-  if (!competitorsTab) {
-    console.warn("[ADV] Competitors tab-pane not found");
-  }
-  if (!bicTab) {
-    console.warn("[ADV] Best-in-class tab-pane not found");
-  }
+  /* ---- Init charts ---- */
+  advGetChartWrappers(competitorsTab).forEach(w => advInitChart(w, competitorsUrl));
+  advGetChartWrappers(bicTab).forEach(w => advInitChart(w, bicUrl));
 
-  /* ---------------------------
-     INIT CHARTS
-  ---------------------------- */
-
-  const compCharts = advGetChartWrappers(competitorsTab);
-  const bicCharts = advGetChartWrappers(bicTab);
-
-  compCharts.forEach(w => advInitChart(w, competitorsUrl));
-  bicCharts.forEach(w => advInitChart(w, bicUrl));
-
-  /* ---------------------------
-     INIT TABLES
-  ---------------------------- */
-
-  const compTables = advGetTableWrappers(competitorsTab);
-  const bicTables = advGetTableWrappers(bicTab);
-
-  compTables.forEach(w => advInitTable(w, competitorsUrl));
-  bicTables.forEach(w => advInitTable(w, bicUrl));
+  /* ---- Init tables ---- */
+  advGetTableWrappers(competitorsTab).forEach(w => advInitTable(w, competitorsUrl));
+  advGetTableWrappers(bicTab).forEach(w => advInitTable(w, bicUrl));
 }
 
 /* ============================================================
-   5B. Auto-init all card-block-wraps
+   5B. AUTO-INIT FOR ALL CARD-BLOCK-WRAP (FINAL)
    ============================================================ */
-
 document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".card-block-wrap").forEach(card => {
+
     const configEl = card.querySelector(".adv-config");
     if (!configEl) return;
 
-    let config = null;
+    let config = {};
     try {
       config = JSON.parse(configEl.textContent.trim());
     } catch (err) {
-      console.error("[ADV] Failed to parse adv-config:", err);
+      console.error("[ADV] Bad adv-config:", err);
       return;
     }
 
-    const defaultPlatform = config.defaultPlatform || Object.keys(config.platforms || {})[0];
+    /* ----------------------------------------------------
+       Detect DEFAULT platform from data-dropdown="default"
+    ---------------------------------------------------- */
+    const platformDD = card.querySelector(".platform-dd-select");
+    let defaultPlatform = null;
+
+    const defaultItem = platformDD
+      ? platformDD.querySelector('[data-dropdown="default"]')
+      : null;
+
+    if (defaultItem) {
+      // Use real platform name in JSON config
+      // "default" always maps to "facebook" unless customized
+      defaultPlatform = "facebook";
+    } else {
+      // fallback: use first key from config.platforms
+      defaultPlatform = Object.keys(config.platforms || {})[0];
+    }
+
     if (!defaultPlatform) {
-      console.error("[ADV] No defaultPlatform defined and platforms empty.", config);
+      console.error("[ADV] No platform found in config");
       return;
     }
 
+    /* ---- Load JSON for default platform ---- */
     advApplyPlatformToBlock(card, defaultPlatform);
 
-    /* ---------------------------
-       Platform Dropdown Listener
-    ---------------------------- */
-    const platformDD = card.querySelector(".platform-dd-select");
-    if (!platformDD) return;
+    /* ---- Update UI label ---- */
+    if (platformDD && defaultItem) {
+      const labelEl = platformDD.querySelector(".platform-dd-selected");
+      const textEl = defaultItem.querySelector(".dropdown-item-text");
 
-    platformDD.addEventListener("click", function (ev) {
-      const item = ev.target.closest("[data-value]");
-      if (!item) return;
+      if (labelEl && textEl) {
+        labelEl.textContent = textEl.textContent.trim();
+      }
+    }
 
-      const value = item.getAttribute("data-value");
-      const label = item.querySelector(".dropdown-item-text")?.textContent.trim() || value;
+    /* ============================================================
+       Platform dropdown click handler (final)
+       ============================================================ */
+    if (platformDD) {
+      platformDD.addEventListener("click", function (ev) {
+        const item = ev.target.closest("[data-dropdown]");
+        if (!item) return;
 
-      const display = platformDD.querySelector(".platform-dd-selected");
-      if (display) display.textContent = label;
+        let ddValue = item.getAttribute("data-dropdown");
+        let platformToLoad = ddValue === "default" ? "facebook" : ddValue;
 
-      advApplyPlatformToBlock(card, value);
+        /* Update UI label */
+        const labelEl = platformDD.querySelector(".platform-dd-selected");
+        const textEl = item.querySelector(".dropdown-item-text");
+        if (labelEl && textEl) {
+          labelEl.textContent = textEl.textContent.trim();
+        }
 
-      const dd = item.closest(".dropdown, .w-dropdown");
-      if (dd && window.$) $(dd).triggerHandler("w-close.w-dropdown");
-    });
+        /* Load correct JSON */
+        advApplyPlatformToBlock(card, platformToLoad);
+
+        /* Close Webflow dropdown */
+        const dd = item.closest(".dropdown, .w-dropdown");
+        if (dd && window.$) $(dd).triggerHandler("w-close.w-dropdown");
+      });
+    }
   });
 });
-
